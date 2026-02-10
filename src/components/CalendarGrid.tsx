@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
 import {
   startOfWeek,
   endOfWeek,
@@ -20,53 +22,7 @@ import { GlassPanel } from "./GlassPanel";
 
 const HOURS = Array.from({ length: 17 }, (_, i) => i + 6); // 6am - 10pm
 
-// Mock data for development
-const MOCK_TASKS = [
-  {
-    _id: "1",
-    name: "Reddit Comments - 9am",
-    agent: "anago",
-    schedule: "Weekdays at 9:00 AM",
-    cronExpr: "0 9 * * 1-5",
-    timezone: "America/New_York",
-    nextRun: Date.now() + 16 * 3600000,
-    status: "active",
-    description: "Browse Reddit for 5-7 comment opportunities. Generate ready-to-paste comments in Josh's voice.",
-  },
-  {
-    _id: "2",
-    name: "Reddit Comments - 10:30am",
-    agent: "anago",
-    schedule: "Weekdays at 10:30 AM",
-    cronExpr: "30 10 * * 1-5",
-    timezone: "America/New_York",
-    nextRun: Date.now() + 17.5 * 3600000,
-    status: "active",
-    description: "Mid-morning Reddit scan. Find fresh posts for karma building.",
-  },
-  {
-    _id: "3",
-    name: "Heartbeat - Full Check",
-    agent: "anago",
-    schedule: "Every 30 min (8am-4pm)",
-    cronExpr: "*/30 8-15 * * *",
-    timezone: "America/New_York",
-    nextRun: Date.now() + 0.5 * 3600000,
-    status: "active",
-    description: "Full heartbeat check: email, calendar, Reddit monitoring, Twitter notifications, weather.",
-  },
-  {
-    _id: "4",
-    name: "EOD Report",
-    agent: "anago",
-    schedule: "Weekdays at 5:00 PM",
-    cronExpr: "0 17 * * 1-5",
-    timezone: "America/New_York",
-    nextRun: Date.now() + 86400000,
-    status: "active",
-    description: "End-of-day summary report for all agents.",
-  },
-];
+// Mock tasks removed — now using Convex data
 
 export function CalendarGrid() {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -76,7 +32,7 @@ export function CalendarGrid() {
   const weekEnd = endOfWeek(currentDate, { weekStartsOn: 1 });
   const days = eachDayOfInterval({ start: weekStart, end: weekEnd });
 
-  const tasks = MOCK_TASKS;
+  const tasks = useQuery(api.scheduledTasks.list, {}) || [];
 
   // For recurring tasks, generate occurrences for the current week
   const weekEvents = useMemo(() => {
@@ -96,8 +52,6 @@ export function CalendarGrid() {
       const parts = task.cronExpr.split(" ");
       if (parts.length < 5) continue;
 
-      const minute = parts[0] === "*" ? 0 : parseInt(parts[0]);
-      const hour = parts[1] === "*" ? 9 : parseInt(parts[1]);
       const dow = parts[4]; // day of week
 
       // Determine which days this runs
@@ -113,19 +67,50 @@ export function CalendarGrid() {
         runDays = [parseInt(dow)];
       }
 
-      // Map to days in the week
-      for (const day of days) {
-        const jsDay = day.getDay(); // 0=Sun
-        // cron: 0=Sun or 7=Sun, 1=Mon...
-        if (runDays.includes(jsDay) || (jsDay === 0 && runDays.includes(7))) {
-          events.push({ task, day, hour, minute });
+      // Parse hours — handle *, N, N-M, */N with optional range
+      let hours: number[] = [];
+      const hourPart = parts[1];
+      const minutePart = parts[0];
+      const minute = minutePart === "*" || minutePart.startsWith("*/") ? 0 : parseInt(minutePart);
+
+      if (hourPart === "*") {
+        hours = [9]; // Default display hour for always-running tasks
+      } else if (hourPart.startsWith("*/")) {
+        // e.g. */2 — every 2 hours
+        const interval = parseInt(hourPart.replace("*/", ""));
+        for (let h = 6; h <= 22; h += interval) hours.push(h);
+      } else if (hourPart.includes("-")) {
+        // e.g. 8-15
+        const [start, end] = hourPart.split("-").map(Number);
+        // For ranges, show start and end
+        hours = [start, end];
+      } else {
+        hours = [parseInt(hourPart)];
+      }
+
+      // Handle minute intervals within hour ranges (e.g. */30 8-15 = every 30min from 8-15)
+      let minutes: number[] = [minute];
+      if (minutePart.startsWith("*/")) {
+        const minInterval = parseInt(minutePart.replace("*/", ""));
+        minutes = [];
+        for (let m = 0; m < 60; m += minInterval) minutes.push(m);
+        // If hour is a range, expand hours
+        if (hourPart.includes("-")) {
+          const [start, end] = hourPart.split("-").map(Number);
+          hours = [];
+          for (let h = start; h <= end; h++) hours.push(h);
         }
       }
 
-      // Handle */N patterns for hours
-      if (parts[1].startsWith("*/")) {
-        const interval = parseInt(parts[1].replace("*/", ""));
-        const hourRange = parts[1]; // Already handled above
+      // Map to days in the week
+      for (const day of days) {
+        const jsDay = day.getDay();
+        if (runDays.includes(jsDay) || (jsDay === 0 && runDays.includes(7))) {
+          for (const h of hours) {
+            // For frequent tasks (heartbeat), only show first occurrence per hour
+            events.push({ task, day, hour: h, minute: minutes[0] });
+          }
+        }
       }
     }
 

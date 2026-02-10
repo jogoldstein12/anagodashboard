@@ -63,7 +63,8 @@ export const seedAll = mutation({
       { name: "Reddit Comments - 3pm", agent: "anago", schedule: "Weekdays at 3:00 PM", cronExpr: "0 15 * * 1-5", timezone: "America/New_York", nextRun: now + 22 * hour, status: "active", description: "Afternoon Reddit scan. Catch late-day posts before evening. Email suggestions." },
       { name: "Heartbeat - Full Check", agent: "anago", schedule: "Every 30 min (8am-4pm)", cronExpr: "*/30 8-15 * * *", timezone: "America/New_York", nextRun: now + 0.5 * hour, status: "active", description: "Full heartbeat check: email, calendar, Reddit monitoring, Twitter notifications, weather. Rotate through checks 2-4 times per day." },
       { name: "EOD Report", agent: "anago", schedule: "Weekdays at 5:00 PM", cronExpr: "0 17 * * 1-5", timezone: "America/New_York", nextRun: now + day, status: "active", description: "End-of-day summary report for all agents. What was accomplished, blockers, next steps." },
-      { name: "Morning Report", agent: "anago", schedule: "Weekdays at 9:00 AM", cronExpr: "0 9 * * 1-5", timezone: "America/New_York", nextRun: now + 16 * hour, status: "active", description: "Morning briefing: overnight work summary, today's priorities, calendar events." },
+      { name: "Morning Report", agent: "anago", schedule: "Daily at 9:00 AM", cronExpr: "0 9 * * *", timezone: "America/New_York", nextRun: now + 16 * hour, status: "active", description: "Morning briefing: overnight work summary, today's priorities, calendar events." },
+      { name: "Twitter Bookmarks Digest", agent: "anago", schedule: "Daily at 9:00 AM", cronExpr: "0 9 * * *", timezone: "America/New_York", nextRun: now + 16 * hour, status: "active", description: "Browse Josh's Twitter bookmarks from last 24h, compile digest with summaries, takeaways, and proposed improvements. Email to jogoldstein12@gmail.com." },
     ];
 
     for (const t of tasks) {
