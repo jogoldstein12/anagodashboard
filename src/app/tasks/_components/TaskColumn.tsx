@@ -1,6 +1,5 @@
 "use client";
 
-import { GlassPanel } from "@/components/GlassPanel";
 import { TaskCard } from "./TaskCard";
 import type { Task } from "@/lib/types";
 
@@ -14,9 +13,10 @@ const COLUMN_CONFIG: Record<string, { label: string; color: string; icon: string
 interface TaskColumnProps {
   status: string;
   tasks: Task[];
+  onEditTask?: (task: Task) => void;
 }
 
-export function TaskColumn({ status, tasks }: TaskColumnProps) {
+export function TaskColumn({ status, tasks, onEditTask }: TaskColumnProps) {
   const config = COLUMN_CONFIG[status] || COLUMN_CONFIG.backlog;
 
   return (
@@ -35,7 +35,7 @@ export function TaskColumn({ status, tasks }: TaskColumnProps) {
       {/* Cards */}
       <div className="space-y-3 flex-1">
         {tasks.map((task) => (
-          <TaskCard key={task._id} task={task} />
+          <TaskCard key={task._id} task={task} onEdit={onEditTask} />
         ))}
         {tasks.length === 0 && (
           <div className="text-center py-8 text-white/20 text-sm">

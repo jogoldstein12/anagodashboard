@@ -7,6 +7,7 @@ import { StatCard } from "@/components/ui/StatCard";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { TaskColumn } from "./TaskColumn";
+import { TaskModal } from "./TaskModal";
 import { ListTodo, PlayCircle, CheckCircle2, AlertCircle, ArrowUpDown } from "lucide-react";
 import { useState } from "react";
 import { AGENTS, type AgentKey } from "@/lib/constants";
@@ -20,11 +21,28 @@ export default function TasksPageClient() {
   const [agentFilter, setAgentFilter] = useState<string>("all");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<"date" | "priority">("date");
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+
+  const handleNewTask = () => {
+    setEditingTask(null);
+    setModalOpen(true);
+  };
+
+  const handleEditTask = (task: Task) => {
+    setEditingTask(task);
+    setModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setModalOpen(false);
+    setEditingTask(null);
+  };
 
   if (allTasks === undefined) {
     return (
       <div className="space-y-6">
-        <PageHeader title="Tasks" description="Kanban board for all agent tasks" />
+        <PageHeader title="Tasks" description="Kanban board for all agent tasks" action={{ label: "New Task", onClick: handleNewTask }} />
         <LoadingState variant="grid" />
       </div>
     );
@@ -33,11 +51,12 @@ export default function TasksPageClient() {
   if (allTasks.length === 0) {
     return (
       <div className="space-y-6">
-        <PageHeader title="Tasks" description="Kanban board for all agent tasks" />
+        <PageHeader title="Tasks" description="Kanban board for all agent tasks" action={{ label: "New Task", onClick: handleNewTask }} />
         <EmptyState
           icon={<ListTodo className="w-12 h-12" />}
-          message="No tasks yet. Tasks will appear here as agents create them."
+          message="No tasks yet. Click 'New Task' to create one."
         />
+        <TaskModal isOpen={modalOpen} onClose={handleCloseModal} task={editingTask} />
       </div>
     );
   }
@@ -95,7 +114,7 @@ export default function TasksPageClient() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Tasks" description="Kanban board for all agent tasks" />
+      <PageHeader title="Tasks" description="Kanban board for all agent tasks" action={{ label: "New Task", onClick: handleNewTask }} />
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -140,9 +159,12 @@ export default function TasksPageClient() {
       {/* Kanban Board */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {STATUSES.map((status) => (
-          <TaskColumn key={status} status={status} tasks={grouped[status]} />
+          <TaskColumn key={status} status={status} tasks={grouped[status]} onEditTask={handleEditTask} />
         ))}
       </div>
+
+      {/* Task Modal */}
+      <TaskModal isOpen={modalOpen} onClose={handleCloseModal} task={editingTask} />
     </div>
   );
 }

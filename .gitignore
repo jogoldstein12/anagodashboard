@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Sync state files
+scripts/.sync-state.json
+scripts/.sessions-dump.json

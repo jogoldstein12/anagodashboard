@@ -154,3 +154,11 @@ export const updateStatus = mutation({
     return await ctx.db.get(args.id);
   },
 });
+
+// Delete a task
+export const remove = mutation({
+  args: { id: v.id("tasks") },
+  handler: async (ctx: MutationCtx, args: { id: any }) => {
+    await ctx.db.delete(args.id);
+  },
+});
