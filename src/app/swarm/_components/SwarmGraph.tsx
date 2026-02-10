@@ -137,7 +137,7 @@ export default function SwarmGraph({ agents }: SwarmGraphProps) {
                 isCenter={isCenter}
                 isActive={pos.isActive}
                 isHovered={hoveredNode === agent._id}
-                onClick={() => handleNodeClick(agent._id)}
+                onClick={() => handleNodeClick(agent.agentId)}
                 onMouseEnter={() => setHoveredNode(agent._id)}
                 onMouseLeave={() => setHoveredNode(null)}
               />
