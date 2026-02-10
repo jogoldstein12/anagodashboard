@@ -1,17 +1,16 @@
 "use client";
 
-import { ActivityFeed } from "@/components/ActivityFeed";
+import { EnhancedActivityFeed } from "@/components/EnhancedActivityFeed";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 export default function Home() {
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-white">Activity Feed</h1>
-        <p className="text-sm text-white/40 mt-1">
-          Every action across all agents, in real time
-        </p>
-      </div>
-      <ActivityFeed />
+    <div className="max-w-6xl mx-auto">
+      <PageHeader
+        title="Activity Feed"
+        description="Every action across all agents, in real time"
+      />
+      <EnhancedActivityFeed />
     </div>
   );
 }
