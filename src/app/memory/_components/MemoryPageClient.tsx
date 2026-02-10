@@ -21,6 +21,16 @@ export default function MemoryPageClient() {
   // Search results (always call hook, use empty query when not searching)
   const searchResults = useQuery(api.documents.search, { query: searchQuery.length >= 2 ? searchQuery : "" });
 
+  // Stats (must be before any early returns to preserve hook order)
+  const typeCounts = useMemo(() => {
+    const counts: Record<string, number> = { memory: 0, document: 0, task: 0, activity: 0 };
+    if (!docs) return counts;
+    for (const d of docs as any[]) {
+      if (counts[d.type] !== undefined) counts[d.type]++;
+    }
+    return counts;
+  }, [docs]);
+
   if (docs === undefined) {
     return (
       <div className="space-y-6">
@@ -37,15 +47,6 @@ export default function MemoryPageClient() {
     : typeFilter === "all"
       ? docs
       : docs.filter((d: any) => d.type === typeFilter);
-
-  // Stats
-  const typeCounts = useMemo(() => {
-    const counts: Record<string, number> = { memory: 0, document: 0, task: 0, activity: 0 };
-    for (const d of docs as any[]) {
-      if (counts[d.type] !== undefined) counts[d.type]++;
-    }
-    return counts;
-  }, [docs]);
 
   return (
     <div className="space-y-6">
