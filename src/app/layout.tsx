@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
 import { Sidebar } from "@/components/Sidebar";
+import { CommandPalette } from "@/components/CommandPalette";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -27,6 +28,9 @@ export default function RootLayout({
             <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-purple-500/[0.06] rounded-full blur-3xl animate-pulse [animation-delay:2s]" />
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-emerald-500/[0.03] rounded-full blur-3xl animate-pulse [animation-delay:4s]" />
           </div>
+
+          {/* Command Palette */}
+          <CommandPalette />
 
           {/* App */}
           <div className="relative z-10 flex h-screen overflow-hidden">

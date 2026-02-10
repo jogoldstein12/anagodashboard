@@ -4,7 +4,7 @@ import { mutation, type MutationCtx } from "./_generated/server";
 export const clearAll = mutation({
   args: {},
   handler: async (ctx: MutationCtx) => {
-    const tables = ["activities", "scheduled_tasks", "documents", "agents", "tasks", "sessions", "notifications"] as const;
+    const tables = ["activities", "scheduled_tasks", "documents", "agents", "tasks", "sessions", "notifications", "cost_entries", "approvals"] as const;
     let total = 0;
     for (const table of tables) {
       const docs = await ctx.db.query(table).collect();
@@ -173,6 +173,17 @@ export const seedAll = mutation({
       await ctx.db.insert("notifications", n);
     }
 
-    return { activities: activities.length, scheduledTasks: tasks.length, documents: documents.length, agents: agentsData.length, tasks: kanbanTasks.length, sessions: sessionsData.length, notifications: notificationsData.length };
+    // --- Approvals ---
+    const approvalsData = [
+      { type: "reddit_comment", title: "Comment on r/SideProject: 'How do you get first 5 users?'", description: "Ready-to-paste comment in Josh's voice about getting early users through direct outreach and Reddit engagement. Casual, helpful tone — no self-promotion.", agent: "iq", status: "pending", data: { subreddit: "r/SideProject", postUrl: "https://reddit.com/r/SideProject/comments/example1", comment: "Honestly the best thing that worked for me was just hanging out in communities where my target users already were. Not pitching — just being genuinely helpful. Eventually people ask what you're working on and that's your opening." }, createdAt: now - 1 * hour },
+      { type: "reddit_comment", title: "Comment on r/Entrepreneur: 'Solo founder burnout'", description: "Empathetic comment about managing burnout as a solo founder, sharing automation strategies.", agent: "iq", status: "pending", data: { subreddit: "r/Entrepreneur", postUrl: "https://reddit.com/r/Entrepreneur/comments/example2", comment: "I feel this. What helped me was ruthlessly automating everything that doesn't need human judgment. Expense tracking, email responses, scheduling — all automated now. Freed up probably 10 hours a week." }, createdAt: now - 0.5 * hour },
+      { type: "improvement", title: "Add ClawRouter-style model routing", description: "From Twitter bookmarks: Implement smart model routing that automatically chooses cheapest model per request. Could save 40-70% on API costs based on ClawRouter case study.", agent: "anago", status: "pending", data: { source: "twitter", effort: "half day", priority: "high" }, createdAt: now - 2 * hour },
+      { type: "task_review", title: "IQ Competitor Audit Complete", description: "IQ completed full competitor analysis. Key findings: Solvely 100K users at $28/mo, Quizard 5.0★ with 2.9K ratings. InstantIQ priced competitively at $4.99-$9.99.", agent: "iq", status: "approved", data: { reportPath: "projects/instantiq/IQ_REPORT_2026-02-09.md" }, createdAt: now - 5 * hour, resolvedAt: now - 4 * hour },
+    ];
+    for (const a of approvalsData) {
+      await ctx.db.insert("approvals", a);
+    }
+
+    return { activities: activities.length, scheduledTasks: tasks.length, documents: documents.length, agents: agentsData.length, tasks: kanbanTasks.length, sessions: sessionsData.length, notifications: notificationsData.length, approvals: approvalsData.length };
   },
 });

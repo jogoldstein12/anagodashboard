@@ -33,10 +33,14 @@ export default defineSchema({
     lastRun: v.optional(v.number()),
     status: v.string(),
     description: v.string(),
+    cronId: v.optional(v.string()),
+    lastStatus: v.optional(v.string()),
+    lastDurationMs: v.optional(v.number()),
   })
     .index("by_agent", ["agent"])
     .index("by_next_run", ["nextRun"])
-    .index("by_status", ["status"]),
+    .index("by_status", ["status"])
+    .index("by_cronId", ["cronId"]),
 
   documents: defineTable({
     type: v.string(),
@@ -92,6 +96,9 @@ export default defineSchema({
     tasksToday: v.number(),
     tasksTotal: v.number(),
     lastActive: v.number(),
+    costToday: v.optional(v.number()),
+    costWeek: v.optional(v.number()),
+    costMonth: v.optional(v.number()),
   })
     .index("by_agentId", ["agentId"]),
 
@@ -111,7 +118,8 @@ export default defineSchema({
   })
     .index("by_agent", ["agent", "startedAt"])
     .index("by_status", ["status", "startedAt"])
-    .index("by_parent", ["parentSessionId", "startedAt"]),
+    .index("by_parent", ["parentSessionId", "startedAt"])
+    .index("by_sessionId", ["sessionId"]),
 
   notifications: defineTable({
     channel: v.string(),
@@ -124,4 +132,30 @@ export default defineSchema({
   })
     .index("by_channel", ["channel", "timestamp"])
     .index("by_timestamp", ["timestamp"]),
+
+  cost_entries: defineTable({
+    agent: v.string(),
+    model: v.string(),
+    tokensIn: v.number(),
+    tokensOut: v.number(),
+    cost: v.number(),
+    sessionId: v.optional(v.string()),
+    timestamp: v.number(),
+  })
+    .index("by_agent", ["agent", "timestamp"])
+    .index("by_timestamp", ["timestamp"])
+    .index("by_model", ["model", "timestamp"]),
+
+  approvals: defineTable({
+    type: v.string(),
+    title: v.string(),
+    description: v.string(),
+    agent: v.string(),
+    status: v.string(),
+    data: v.optional(v.any()),
+    createdAt: v.number(),
+    resolvedAt: v.optional(v.number()),
+  })
+    .index("by_status", ["status", "createdAt"])
+    .index("by_agent", ["agent", "createdAt"]),
 });

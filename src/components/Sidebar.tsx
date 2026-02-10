@@ -2,20 +2,22 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, Calendar, Search, Users, Network, ListTodo, DollarSign, Brain, Bell, Settings } from "lucide-react";
+import { Activity, Calendar, Search, Users, Network, ListTodo, DollarSign, Brain, Bell, Settings, Inbox } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AGENTS, type AgentKey, AGENT_EMOJI } from "@/lib/constants";
 import { StatusDot } from "./StatusDot";
 import { GlassPanel } from "./GlassPanel";
 
 const NAV_ITEMS = [
-  { href: "/", label: "Activity Feed", icon: Activity },
+  { href: "/", label: "Home", icon: Activity },
+  { href: "/activity", label: "Activity Feed", icon: Activity },
   { href: "/agents", label: "Agents", icon: Users },
   { href: "/swarm", label: "Swarm", icon: Network },
   { href: "/calendar", label: "Calendar", icon: Calendar },
   { href: "/tasks", label: "Tasks", icon: ListTodo },
   { href: "/costs", label: "Costs", icon: DollarSign },
   { href: "/memory", label: "Memory", icon: Brain },
+  { href: "/inbox", label: "Inbox", icon: Inbox },
   { href: "/notifications", label: "Notifications", icon: Bell },
   { href: "/search", label: "Search", icon: Search },
   { href: "/settings", label: "Settings", icon: Settings },
