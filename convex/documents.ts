@@ -62,14 +62,20 @@ export const create = mutation({
 
 export const listByType = query({
   args: {
-    type: v.string(),
+    type: v.optional(v.string()),
     limit: v.optional(v.number()),
   },
-  handler: async (ctx: QueryCtx, args: { type: string; limit?: number }) => {
+  handler: async (ctx: QueryCtx, args: { type?: string; limit?: number }) => {
+    if (args.type) {
+      return await ctx.db
+        .query("documents")
+        .withIndex("by_type", (q: any) => q.eq("type", args.type!))
+        .order("desc")
+        .take(args.limit ?? 50);
+    }
     return await ctx.db
       .query("documents")
-      .withIndex("by_type", (q) => q.eq("type", args.type))
       .order("desc")
-      .take(args.limit ?? 50);
+      .take(args.limit ?? 100);
   },
 });
