@@ -1,6 +1,22 @@
 // @ts-nocheck
 import { mutation, type MutationCtx } from "./_generated/server";
 
+export const clearAll = mutation({
+  args: {},
+  handler: async (ctx: MutationCtx) => {
+    const tables = ["activities", "scheduled_tasks", "documents", "agents", "tasks", "sessions", "notifications"] as const;
+    let total = 0;
+    for (const table of tables) {
+      const docs = await ctx.db.query(table).collect();
+      for (const doc of docs) {
+        await ctx.db.delete(doc._id);
+        total++;
+      }
+    }
+    return { deleted: total };
+  },
+});
+
 export const seedAll = mutation({
   args: {},
   handler: async (ctx: MutationCtx, args: {}) => {

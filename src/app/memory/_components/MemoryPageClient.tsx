@@ -18,11 +18,8 @@ export default function MemoryPageClient() {
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  // Search results (only when searching)
-  const searchResults = useQuery(
-    api.documents.search,
-    searchQuery.length >= 2 ? { query: searchQuery } : "skip"
-  );
+  // Search results (always call hook, use empty query when not searching)
+  const searchResults = useQuery(api.documents.search, { query: searchQuery.length >= 2 ? searchQuery : "" });
 
   if (docs === undefined) {
     return (
