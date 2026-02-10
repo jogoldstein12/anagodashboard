@@ -7,7 +7,7 @@ import { StatCard } from "@/components/ui/StatCard";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { TaskColumn } from "./TaskColumn";
-import { ListTodo, PlayCircle, CheckCircle2, AlertCircle } from "lucide-react";
+import { ListTodo, PlayCircle, CheckCircle2, AlertCircle, ArrowUpDown } from "lucide-react";
 import { useState } from "react";
 import { AGENTS, type AgentKey } from "@/lib/constants";
 import type { Task } from "@/lib/types";
@@ -19,6 +19,7 @@ export default function TasksPageClient() {
   const allTasks = useQuery(api.tasks.list, {});
   const [agentFilter, setAgentFilter] = useState<string>("all");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<"date" | "priority">("date");
 
   if (allTasks === undefined) {
     return (
@@ -61,6 +62,21 @@ export default function TasksPageClient() {
     if (grouped[task.status]) {
       grouped[task.status].push(task);
     }
+  }
+
+  // Sort within each column
+  const priorityOrder: Record<string, number> = { p0: 0, p1: 1, p2: 2, p3: 3 };
+  for (const status of Object.keys(grouped)) {
+    grouped[status].sort((a, b) => {
+      if (sortBy === "priority") {
+        return (priorityOrder[a.priority] ?? 9) - (priorityOrder[b.priority] ?? 9);
+      }
+      // Sort by date: newest first; Done column sorts by completedAt
+      if (status === "done") {
+        return (b.completedAt ?? b.updatedAt) - (a.completedAt ?? a.updatedAt);
+      }
+      return b.createdAt - a.createdAt;
+    });
   }
 
   // Stats
@@ -111,6 +127,14 @@ export default function TasksPageClient() {
             <option key={p} value={p}>{p === "all" ? "All Priorities" : p.toUpperCase()}</option>
           ))}
         </select>
+
+        <button
+          onClick={() => setSortBy(sortBy === "date" ? "priority" : "date")}
+          className="flex items-center gap-2 bg-white/[0.06] border border-white/[0.12] rounded-lg px-3 py-2 text-sm text-white/80 hover:bg-white/[0.10] transition-colors"
+        >
+          <ArrowUpDown className="w-4 h-4" />
+          Sort: {sortBy === "date" ? "Date" : "Priority"}
+        </button>
       </div>
 
       {/* Kanban Board */}

@@ -89,14 +89,41 @@ export const seedAll = mutation({
 
     // --- Tasks (kanban) ---
     const kanbanTasks = [
-      { title: "Monitor Chrome Web Store submission", description: "Check CWS approval status daily for InstantIQ extension", agent: "iq", priority: "p0", status: "in_progress", createdAt: now - 1 * day, updatedAt: now },
-      { title: "Landing page P0 fixes", description: "Remove '100% accuracy' claim, remove 'thousands of students', fix comparison table on instantiq.app", agent: "iq", priority: "p0", status: "up_next", createdAt: now - 0.5 * day, updatedAt: now },
-      { title: "Reddit karma building", description: "Post helpful comments in target subreddits to build u/nerlenscrafter karma before launch", agent: "iq", priority: "p1", status: "in_progress", createdAt: now - 1 * day, updatedAt: now },
+      { title: "Monitor Chrome Web Store submission", description: "Check CWS approval status daily for InstantIQ extension", agent: "iq", priority: "p0", status: "in_progress", createdAt: now - 1 * day, updatedAt: now, subtasks: [
+        { title: "Submit extension to CWS", status: "done", completedAt: now - 1 * day },
+        { title: "Wait for initial review", status: "in_progress" },
+        { title: "Fix issues if rejected", status: "pending" },
+        { title: "Confirm live in store", status: "pending" },
+      ]},
+      { title: "Landing page P0 fixes", description: "Remove '100% accuracy' claim, remove 'thousands of students', fix comparison table on instantiq.app", agent: "iq", priority: "p0", status: "up_next", createdAt: now - 0.5 * day, updatedAt: now, subtasks: [
+        { title: "Remove '100% accuracy' claim", status: "pending" },
+        { title: "Remove 'thousands of students' copy", status: "pending" },
+        { title: "Fix comparison table layout", status: "pending" },
+        { title: "Add real testimonials / social proof", status: "pending" },
+      ]},
+      { title: "Reddit karma building", description: "Post helpful comments in target subreddits to build u/nerlenscrafter karma before launch", agent: "iq", priority: "p1", status: "in_progress", createdAt: now - 1 * day, updatedAt: now, subtasks: [
+        { title: "Draft 10 helpful comments", status: "done", completedAt: now - 3 * hour },
+        { title: "Post in r/SideProject", status: "done", completedAt: now - 2 * hour },
+        { title: "Post in r/chrome_extensions", status: "in_progress" },
+        { title: "Build to 50+ karma", status: "pending" },
+        { title: "Engage in 3+ threads per day", status: "pending" },
+      ]},
       { title: "Competitor deep-dive report", description: "Detailed analysis of Solvely, Quizard, QuizSolverAI pricing, features, reviews, and weaknesses", agent: "iq", priority: "p1", status: "done", completedAt: now - 3 * hour, createdAt: now - 1 * day, updatedAt: now },
       { title: "Activate GreenSea agent", description: "Set up GreenSea agent context, priorities, and first tasks for Cleveland portfolio management", agent: "anago", priority: "p2", status: "backlog", createdAt: now - 0.5 * day, updatedAt: now },
       { title: "Taxes - organize docs", description: "Start organizing tax documents for April 15 deadline. Personal + business taxes.", agent: "anago", priority: "p1", status: "backlog", dueDate: now + 64 * day, createdAt: now - 1 * day, updatedAt: now },
       { title: "Twitter Bookmarks Digest setup", description: "Configure daily email digest of Josh's Twitter bookmarks with actionable improvements", agent: "anago", priority: "p1", status: "done", completedAt: now - 2 * hour, createdAt: now - 0.5 * day, updatedAt: now },
-      { title: "Mission Control dashboard", description: "Build full Mission Control dashboard with all pages: Activity, Calendar, Search, Agents, Swarm, Tasks, Costs, Memory, Notifications, Settings", agent: "anago", priority: "p0", status: "in_progress", createdAt: now - 0.5 * day, updatedAt: now },
+      { title: "Mission Control dashboard", description: "Build full Mission Control dashboard with all pages: Activity, Calendar, Search, Agents, Swarm, Tasks, Costs, Memory, Notifications, Settings", agent: "anago", priority: "p0", status: "in_progress", createdAt: now - 0.5 * day, updatedAt: now, subtasks: [
+        { title: "Phase 1: Data Layer (Convex)", status: "done", completedAt: now - 12 * hour },
+        { title: "Phase 2: Shared UI Components", status: "done", completedAt: now - 10 * hour },
+        { title: "Phase 3: Activity Feed", status: "done", completedAt: now - 8 * hour },
+        { title: "Phase 4: Agent Pages", status: "done", completedAt: now - 6 * hour },
+        { title: "Phase 5: Tasks Page", status: "done", completedAt: now - 4 * hour },
+        { title: "Phase 6: Costs Dashboard", status: "done", completedAt: now - 3 * hour },
+        { title: "Phase 7: Memory Browser", status: "done", completedAt: now - 2 * hour },
+        { title: "Phase 8: Notifications", status: "done", completedAt: now - 1.5 * hour },
+        { title: "Phase 9: Settings", status: "done", completedAt: now - 1 * hour },
+        { title: "Phase 10: Seed Data + Polish", status: "done", completedAt: now - 0.5 * hour },
+      ]},
       { title: "Product Hunt launch prep", description: "Prepare Product Hunt launch page for InstantIQ if applicable", agent: "iq", priority: "p2", status: "backlog", createdAt: now - 1 * day, updatedAt: now },
       { title: "Polymarket trading engine research", description: "Research automated trading strategies for Polymarket prediction markets", agent: "anago", priority: "p2", status: "in_progress", createdAt: now - 0.3 * day, updatedAt: now },
     ];

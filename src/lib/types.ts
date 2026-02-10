@@ -16,6 +16,12 @@ export interface Agent {
   lastActive: number;
 }
 
+export interface Subtask {
+  title: string;
+  status: string; // "done" | "in_progress" | "pending"
+  completedAt?: number;
+}
+
 export interface Task {
   _id: string;
   title: string;
@@ -27,6 +33,7 @@ export interface Task {
   createdAt: number;
   updatedAt: number;
   completedAt?: number;
+  subtasks?: Subtask[];
 }
 
 export interface Session {

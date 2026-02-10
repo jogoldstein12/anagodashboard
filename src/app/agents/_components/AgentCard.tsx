@@ -7,9 +7,11 @@ import { StatusDot } from "@/components/StatusDot";
 import { Badge } from "@/components/ui/Badge";
 import { AGENTS, AGENT_EMOJI, type AgentKey } from "@/lib/constants";
 import { relativeTime } from "@/lib/utils";
-import { Cpu, CheckCircle, Hash, Clock } from "lucide-react";
+import { Cpu, CheckCircle, Hash, Clock, ListTodo } from "lucide-react";
 import type { Agent } from "@/lib/types";
 import { useRouter } from "next/navigation";
+import { useQuery } from "convex/react";
+import { api } from "../../../../convex/_generated/api";
 
 interface AgentCardProps {
   agent: Agent;
@@ -17,6 +19,8 @@ interface AgentCardProps {
 
 export function AgentCard({ agent }: AgentCardProps) {
   const router = useRouter();
+  const agentTasks = useQuery(api.tasks.getByAgent, { agent: agent.agentId });
+  const openTaskCount = agentTasks ? agentTasks.filter((t) => t.status !== "done").length : 0;
   const agentKey = agent.agentId as AgentKey;
   const agentInfo = AGENTS[agentKey];
   const emoji = AGENT_EMOJI[agentKey] || "🤖";
@@ -66,6 +70,12 @@ export function AgentCard({ agent }: AgentCardProps) {
             <Badge variant={statusVariant} size="sm">
               {agent.status}
             </Badge>
+            {openTaskCount > 0 && (
+              <Badge variant="info" size="sm">
+                <ListTodo className="w-3 h-3 mr-1 inline" />
+                {openTaskCount}
+              </Badge>
+            )}
           </div>
         </div>
         

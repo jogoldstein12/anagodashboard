@@ -26,7 +26,8 @@ import {
   Terminal,
   Brain,
   Settings,
-  FileText
+  FileText,
+  ListTodo
 } from "lucide-react";
 import type { Agent, Activity, Session } from "@/lib/types";
 
@@ -44,6 +45,7 @@ export function AgentProfileClient() {
     agent: agentId,
     limit: 10 
   });
+  const agentTasks = useQuery(api.tasks.getByAgent, { agent: agentId });
   
   if (agent === undefined) {
     return (
@@ -169,6 +171,83 @@ export function AgentProfileClient() {
               </div>
             )}
             
+            {/* Agent Tasks */}
+            {agentTasks && agentTasks.length > 0 && (() => {
+              const tasksByStatus: Record<string, typeof agentTasks> = {
+                in_progress: [],
+                up_next: [],
+                backlog: [],
+                done: [],
+              };
+              for (const t of agentTasks) {
+                if (tasksByStatus[t.status]) tasksByStatus[t.status].push(t);
+              }
+              const openTasks = agentTasks.filter((t) => t.status !== "done").length;
+              const doneTasks = agentTasks.filter((t) => t.status === "done").length;
+              const allSubtasks = agentTasks.flatMap((t) => (t as any).subtasks || []);
+              const remainingSubtasks = allSubtasks.filter((s: any) => s.status !== "done").length;
+
+              const statusLabels: Record<string, string> = {
+                in_progress: "In Progress",
+                up_next: "Up Next",
+                backlog: "Backlog",
+                done: "Done",
+              };
+              const statusColors: Record<string, string> = {
+                in_progress: "text-blue-400",
+                up_next: "text-amber-400",
+                backlog: "text-white/40",
+                done: "text-green-400",
+              };
+              const priorityColors: Record<string, string> = {
+                p0: "bg-red-500/20 text-red-400",
+                p1: "bg-amber-500/20 text-amber-400",
+                p2: "bg-blue-500/20 text-blue-400",
+                p3: "bg-white/10 text-white/50",
+              };
+
+              return (
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <ListTodo className="w-4 h-4 text-white/60" />
+                      <h3 className="text-sm font-medium text-white">Tasks</h3>
+                    </div>
+                    <span className="text-xs text-white/40">
+                      {doneTasks}/{agentTasks.length} complete{remainingSubtasks > 0 ? ` · ${remainingSubtasks} subtasks remaining` : ""}
+                    </span>
+                  </div>
+
+                  <div className="space-y-4">
+                    {(["in_progress", "up_next", "backlog", "done"] as const).map((status) => {
+                      const tasks = tasksByStatus[status];
+                      if (tasks.length === 0) return null;
+                      return (
+                        <div key={status}>
+                          <div className={`text-xs font-medium mb-2 ${statusColors[status]}`}>
+                            {statusLabels[status]} ({tasks.length})
+                          </div>
+                          <div className="space-y-1.5">
+                            {tasks.map((t) => (
+                              <div key={t._id} className="flex items-center gap-3 bg-white/[0.05] rounded-lg px-3 py-2">
+                                <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${priorityColors[t.priority] || priorityColors.p3}`}>
+                                  {t.priority.toUpperCase()}
+                                </span>
+                                <span className={`text-sm flex-1 ${status === "done" ? "text-white/40 line-through" : "text-white/80"}`}>
+                                  {t.title}
+                                </span>
+                                <span className="text-xs text-white/30">{relativeTime(t.updatedAt)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Recent Activity */}
             <div>
               <div className="flex items-center gap-2 mb-4">

@@ -69,6 +69,11 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
     completedAt: v.optional(v.number()),
+    subtasks: v.optional(v.array(v.object({
+      title: v.string(),
+      status: v.string(),
+      completedAt: v.optional(v.number()),
+    }))),
   })
     .index("by_status", ["status", "createdAt"])
     .index("by_agent", ["agent", "status"])

@@ -81,8 +81,13 @@ export const create = mutation({
     priority: v.string(),
     status: v.string(),
     dueDate: v.optional(v.number()),
+    subtasks: v.optional(v.array(v.object({
+      title: v.string(),
+      status: v.string(),
+      completedAt: v.optional(v.number()),
+    }))),
   },
-  handler: async (ctx: MutationCtx, args: { title: string; description: string; agent: string; priority: string; status: string; dueDate?: number }) => {
+  handler: async (ctx: MutationCtx, args: { title: string; description: string; agent: string; priority: string; status: string; dueDate?: number; subtasks?: Array<{ title: string; status: string; completedAt?: number }> }) => {
     const now = Date.now();
     return await ctx.db.insert("tasks", {
       ...args,
