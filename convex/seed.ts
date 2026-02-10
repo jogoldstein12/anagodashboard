@@ -75,6 +75,60 @@ export const seedAll = mutation({
       await ctx.db.insert("documents", d);
     }
 
-    return { activities: activities.length, tasks: tasks.length, documents: documents.length };
+    // --- Agents ---
+    const agentsData = [
+      { agentId: "anago", name: "Anago", emoji: "🍣", model: "claude-opus-4-6", trustLevel: "L3", status: "active", color: "#3b82f6", currentTask: "Building Mission Control dashboard", tokensToday: 45200, tasksToday: 12, tasksTotal: 47, lastActive: now },
+      { agentId: "iq", name: "IQ", emoji: "⚡", model: "kimi-k2.5", trustLevel: "L1", status: "active", color: "#22c55e", currentTask: "Reddit karma building", tokensToday: 18400, tasksToday: 5, tasksTotal: 14, lastActive: now - 0.5 * hour },
+      { agentId: "greensea", name: "GreenSea", emoji: "🏠", model: "kimi-k2.5", trustLevel: "L1", status: "idle", color: "#10b981", tokensToday: 0, tasksToday: 0, tasksTotal: 1, lastActive: now - 7 * hour },
+      { agentId: "courtside", name: "Courtside", emoji: "🏐", model: "claude-haiku-3.5", trustLevel: "L1", status: "idle", color: "#f97316", tokensToday: 0, tasksToday: 0, tasksTotal: 1, lastActive: now - 7 * hour },
+      { agentId: "afterdark", name: "After Dark", emoji: "🎉", model: "claude-haiku-3.5", trustLevel: "L1", status: "offline", color: "#a855f7", tokensToday: 0, tasksToday: 0, tasksTotal: 1, lastActive: now - 7 * hour },
+    ];
+    for (const a of agentsData) {
+      await ctx.db.insert("agents", a);
+    }
+
+    // --- Tasks (kanban) ---
+    const kanbanTasks = [
+      { title: "Monitor Chrome Web Store submission", description: "Check CWS approval status daily for InstantIQ extension", agent: "iq", priority: "p0", status: "in_progress", createdAt: now - 1 * day, updatedAt: now },
+      { title: "Landing page P0 fixes", description: "Remove '100% accuracy' claim, remove 'thousands of students', fix comparison table on instantiq.app", agent: "iq", priority: "p0", status: "up_next", createdAt: now - 0.5 * day, updatedAt: now },
+      { title: "Reddit karma building", description: "Post helpful comments in target subreddits to build u/nerlenscrafter karma before launch", agent: "iq", priority: "p1", status: "in_progress", createdAt: now - 1 * day, updatedAt: now },
+      { title: "Competitor deep-dive report", description: "Detailed analysis of Solvely, Quizard, QuizSolverAI pricing, features, reviews, and weaknesses", agent: "iq", priority: "p1", status: "done", completedAt: now - 3 * hour, createdAt: now - 1 * day, updatedAt: now },
+      { title: "Activate GreenSea agent", description: "Set up GreenSea agent context, priorities, and first tasks for Cleveland portfolio management", agent: "anago", priority: "p2", status: "backlog", createdAt: now - 0.5 * day, updatedAt: now },
+      { title: "Taxes - organize docs", description: "Start organizing tax documents for April 15 deadline. Personal + business taxes.", agent: "anago", priority: "p1", status: "backlog", dueDate: now + 64 * day, createdAt: now - 1 * day, updatedAt: now },
+      { title: "Twitter Bookmarks Digest setup", description: "Configure daily email digest of Josh's Twitter bookmarks with actionable improvements", agent: "anago", priority: "p1", status: "done", completedAt: now - 2 * hour, createdAt: now - 0.5 * day, updatedAt: now },
+      { title: "Mission Control dashboard", description: "Build full Mission Control dashboard with all pages: Activity, Calendar, Search, Agents, Swarm, Tasks, Costs, Memory, Notifications, Settings", agent: "anago", priority: "p0", status: "in_progress", createdAt: now - 0.5 * day, updatedAt: now },
+      { title: "Product Hunt launch prep", description: "Prepare Product Hunt launch page for InstantIQ if applicable", agent: "iq", priority: "p2", status: "backlog", createdAt: now - 1 * day, updatedAt: now },
+      { title: "Polymarket trading engine research", description: "Research automated trading strategies for Polymarket prediction markets", agent: "anago", priority: "p2", status: "in_progress", createdAt: now - 0.3 * day, updatedAt: now },
+    ];
+    for (const t of kanbanTasks) {
+      await ctx.db.insert("tasks", t);
+    }
+
+    // --- Sessions ---
+    const sessionsData = [
+      { sessionId: "main-001", sessionKey: "agent:main:main", agent: "anago", model: "claude-opus-4-6", status: "active", startedAt: now - 10 * hour, tokensIn: 32000, tokensOut: 13200, cost: 0.8540, taskSummary: "Main session — full setup, agent framework, Mission Control" },
+      { sessionId: "iq-001", sessionKey: "agent:main:subagent:iq-001", agent: "iq", parentSessionId: "main-001", model: "deepseek-chat", status: "completed", startedAt: now - 6 * hour, endedAt: now - 5 * hour, tokensIn: 14200, tokensOut: 5800, cost: 0.0028, taskSummary: "Competitor audit + landing page review" },
+      { sessionId: "iq-002", sessionKey: "agent:main:subagent:iq-002", agent: "iq", parentSessionId: "main-001", model: "deepseek-chat", status: "completed", startedAt: now - 4.5 * hour, endedAt: now - 4 * hour, tokensIn: 11000, tokensOut: 4500, cost: 0.0022, taskSummary: "Reddit warmup comments drafting" },
+      { sessionId: "reddit-cron-001", sessionKey: "agent:main:cron:reddit-9am", agent: "anago", model: "deepseek-chat", status: "completed", startedAt: now - 3 * hour, endedAt: now - 2.9 * hour, tokensIn: 8500, tokensOut: 3200, cost: 0.0016, taskSummary: "Reddit cron: 7 comment opportunities found" },
+      { sessionId: "twitter-001", sessionKey: "agent:main:cron:twitter-digest", agent: "anago", model: "deepseek-chat", status: "completed", startedAt: now - 1 * hour, endedAt: now - 0.5 * hour, tokensIn: 22000, tokensOut: 8400, cost: 0.0042, taskSummary: "Twitter bookmarks daily digest compiled and emailed" },
+      { sessionId: "mc-phase2", sessionKey: "agent:main:subagent:mc-phase2", agent: "anago", parentSessionId: "main-001", model: "deepseek-chat", status: "completed", startedAt: now - 2 * hour, endedAt: now - 1.5 * hour, tokensIn: 18000, tokensOut: 12000, cost: 0.0042, taskSummary: "Mission Control Phase 2: shared UI components" },
+    ];
+    for (const s of sessionsData) {
+      await ctx.db.insert("sessions", s);
+    }
+
+    // --- Notifications ---
+    const notificationsData = [
+      { channel: "telegram", recipient: "Josh (6491266739)", subject: "IQ Competitor Audit", content: "Competitor audit complete! Solvely: 100K users at ~$28/mo. Quizard: 2.9K ratings at 5.0★. QuizSolverAI: $18.75/mo. InstantIQ's pricing ($4.99-$9.99) is our biggest differentiator.", status: "delivered", timestamp: now - 4 * hour },
+      { channel: "telegram", recipient: "Josh (6491266739)", subject: "Reddit Comment Picks", content: "Top 3 Reddit comment opportunities: r/chrome_extensions x2, r/indiehackers x1. Comments drafted in your voice — casual, helpful, zero self-promo. Ready to paste.", status: "delivered", timestamp: now - 3.5 * hour },
+      { channel: "email", recipient: "jogoldstein12@gmail.com", subject: "Reddit Comment Opportunities - Morning", content: "6 Reddit posts found across target subreddits. Each with a ready-to-paste comment in your builder voice. Top picks: r/Entrepreneur 'How to get first 5 users' thread.", status: "sent", timestamp: now - 2.5 * hour },
+      { channel: "email", recipient: "jogoldstein12@gmail.com", subject: "🐦 Daily Twitter Bookmarks Digest — Feb 10, 2026", content: "3 bookmarks from last 24h: ClawRouter cost optimization (70% savings), Claude Code WebSocket hack, OpenClaw security concerns. 6 proposed improvements.", status: "sent", timestamp: now - 0.5 * hour },
+      { channel: "telegram", recipient: "Josh (6491266739)", subject: "Phase 5 Complete", content: "✅ Phase 5 complete — Tasks Page. Kanban board with 4 columns, glass-panel task cards, agent/priority filters, stats row.", status: "sent", timestamp: now },
+    ];
+    for (const n of notificationsData) {
+      await ctx.db.insert("notifications", n);
+    }
+
+    return { activities: activities.length, scheduledTasks: tasks.length, documents: documents.length, agents: agentsData.length, tasks: kanbanTasks.length, sessions: sessionsData.length, notifications: notificationsData.length };
   },
 });
