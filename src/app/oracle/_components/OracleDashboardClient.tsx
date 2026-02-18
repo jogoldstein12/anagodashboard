@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
+import { api } from "../../../../convex/_generated/api";
 import { GlassPanel } from "@/components/GlassPanel";
 import { OverviewPanel } from "./OverviewPanel";
 import { PnlStatement } from "./PnlStatement";

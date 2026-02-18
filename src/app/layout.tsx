@@ -1,12 +1,9 @@
-"use client";
-
-import { useState } from "react";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
-import { Sidebar, SidebarToggle } from "@/components/Sidebar";
 import { CommandPalette } from "@/components/CommandPalette";
+import { LayoutShell } from "@/components/LayoutShell";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -20,33 +17,20 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-
   return (
     <html lang="en" className="dark">
       <body className={`${inter.className} antialiased`}>
         <Providers>
           {/* Background */}
           <div className="fixed inset-0 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
-            {/* Animated orbs */}
             <div className="absolute top-1/4 -left-32 w-96 h-96 bg-blue-500/[0.06] rounded-full blur-3xl animate-pulse" />
             <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-purple-500/[0.06] rounded-full blur-3xl animate-pulse [animation-delay:2s]" />
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-emerald-500/[0.03] rounded-full blur-3xl animate-pulse [animation-delay:4s]" />
           </div>
 
-          {/* Command Palette */}
           <CommandPalette />
 
-          {/* Mobile Sidebar Toggle */}
-          <SidebarToggle onClick={() => setSidebarOpen(true)} />
-
-          {/* App */}
-          <div className="relative z-10 flex h-screen overflow-hidden">
-            <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-            <main className="flex-1 overflow-y-auto p-4 md:p-6 pt-16 md:pt-6 w-full">
-              {children}
-            </main>
-          </div>
+          <LayoutShell>{children}</LayoutShell>
         </Providers>
       </body>
     </html>
