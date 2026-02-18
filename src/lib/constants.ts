@@ -16,7 +16,7 @@ export const AGENTS = {
   greensea: { label: "GreenSea", color: "#10b981", bg: "bg-emerald-500", dot: "bg-emerald-400" },
   courtside: { label: "Courtside", color: "#f97316", bg: "bg-orange-500", dot: "bg-orange-400" },
   afterdark: { label: "After Dark", color: "#a855f7", bg: "bg-purple-500", dot: "bg-purple-400" },
-  oracle: { label: "Oracle", color: "#f59e0b", bg: "bg-amber-500", dot: "bg-amber-400" },
+  mako: { label: "Mako", color: "#f59e0b", bg: "bg-amber-500", dot: "bg-amber-400" },
 } as const;
 
 export type AgentKey = keyof typeof AGENTS;
@@ -27,7 +27,7 @@ export const AGENT_EMOJI: Record<AgentKey, string> = {
   greensea: "🌊",
   courtside: "🏀",
   afterdark: "🌙",
-  oracle: "🔮",
+  mako: "🦈",
 };
 
 export const ACTION_ICONS: Record<string, LucideIcon> = {

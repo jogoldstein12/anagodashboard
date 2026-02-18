@@ -26,6 +26,7 @@ const DRY_RUN = process.argv.includes("--dry-run");
 // Model pricing per 1M tokens (input/output) in USD
 const MODEL_PRICING = {
   "claude-opus-4-6":      { input: 15.00, output: 75.00 },
+  "claude-sonnet-4-6":    { input: 3.00,  output: 15.00 },
   "claude-haiku-3.5":     { input: 0.80,  output: 4.00 },
   "deepseek-chat":        { input: 0.27,  output: 1.10 },
   "kimi-k2.5":            { input: 0.40,  output: 1.60 },
@@ -133,10 +134,11 @@ function getActualTokens(session) {
   }
   
   // Fallback: estimate from totalTokens if it seems reasonable (not context window)
+  // Most sessions are ~70% input (prompts/context) and ~30% output (responses)
   const total = session.totalTokens || 0;
   if (total > 0 && total < 100000) { // Reasonable token count, not context window
-    tokensIn = Math.round(total * 0.3);
-    tokensOut = Math.round(total * 0.7);
+    tokensIn = Math.round(total * 0.7);
+    tokensOut = Math.round(total * 0.3);
   }
   
   return { tokensIn, tokensOut };
@@ -152,7 +154,7 @@ function inferAgent(session) {
   if (key.includes("agent:greensea:")) return "greensea";
   if (key.includes("agent:courtside:")) return "courtside";
   if (key.includes("agent:afterdark:")) return "afterdark";
-  if (key.includes("agent:oracle:") || key.includes("agent:poly:")) return "oracle";
+  if (key.includes("agent:mako:") || key.includes("agent:poly:")) return "mako";
   
   // Check labels (sub-agent sessions spawned from main)
   if (label.includes("iq") || label.includes("instantiq")) return "iq";
@@ -179,7 +181,7 @@ async function syncAgents(sessions) {
     { agentId: "greensea", name: "GreenSea", emoji: "🌊", model: "kimi-k2.5", trustLevel: "L1", color: "#10b981" },
     { agentId: "courtside", name: "Courtside", emoji: "🏀", model: "haiku-3.5", trustLevel: "L1", color: "#f97316" },
     { agentId: "afterdark", name: "After Dark", emoji: "🌙", model: "haiku-3.5", trustLevel: "L1", color: "#a855f7" },
-    { agentId: "oracle", name: "Oracle", emoji: "🔮", model: "claude-sonnet-4-6", trustLevel: "L2", color: "#f59e0b" },
+    { agentId: "mako", name: "Mako", emoji: "🦈", model: "kimi-k2.5", trustLevel: "L2", color: "#f59e0b" },
   ];
 
   // Calculate per-agent stats from sessions
@@ -234,15 +236,15 @@ async function syncAgents(sessions) {
       status = "offline";
     }
     
-    // Special Oracle detection — runs as standalone Automaton process
-    if (agent.agentId === "oracle") {
+    // Special Mako detection — runs as standalone scalper process
+    if (agent.agentId === "mako") {
       try {
-        const oracleProc = run("pgrep -f 'automaton.*--run' || true").trim();
-        if (oracleProc) {
+        const makoProc = run("pgrep -f 'scalper.py' || true").trim();
+        if (makoProc) {
           status = "active";
           // Check log recency
           try {
-            const logStat = run("stat -f '%m' ~/.automaton/oracle.log 2>/dev/null || true").trim();
+            const logStat = run("stat -f '%m' ~/mako_trading/scalper.log 2>/dev/null || true").trim();
             if (logStat) {
               const logAge = Date.now() - parseInt(logStat) * 1000;
               if (logAge < 300000) status = "active"; // log updated in last 5 min
