@@ -208,7 +208,12 @@ async function syncAgents(sessions) {
     const stats = agentStats[agent.agentId] || {};
     
     // Check if agent exists in OpenClaw agents list
-    const agentExists = agentsList.some(a => a.id === agent.agentId || a.name === agent.name);
+    // Note: Anago has id "main" in OpenClaw, not "anago"
+    const agentExists = agentsList.some(a => 
+      a.id === agent.agentId || 
+      a.name === agent.name ||
+      (agent.agentId === "anago" && a.id === "main")
+    );
     
     // Determine status: active if recent activity AND agent exists in OpenClaw
     let status = "idle";
@@ -368,12 +373,22 @@ async function syncTasks(state) {
         description = content.substring(0, 500);
       }
       
-      // Infer status from filename/content
-      if (file.includes("complete") || file.includes("done") || content.match(/completed|done|finished/i)) {
+      // Infer status from filename/content - more accurate
+      const lowerContent = content.toLowerCase();
+      if (file.includes("complete") || file.includes("done") || 
+          lowerContent.match(/\b(completed|done|finished|resolved|closed)\b/)) {
         status = "done";
-        completedAt = Date.now() - 86400000; // Assume completed yesterday
-      } else if (file.includes("in-progress") || content.match(/in progress|working on|active/i)) {
+        // Try to extract completion date from content
+        const dateMatch = content.match(/\[(\d{4}-\d{2}-\d{2})\]/);
+        if (dateMatch) {
+          completedAt = new Date(dateMatch[1]).getTime();
+        } else {
+          completedAt = Date.now() - 86400000; // Assume completed yesterday
+        }
+      } else if (file.includes("in-progress") || lowerContent.match(/\b(in progress|working on|active|wip)\b/i)) {
         status = "in_progress";
+      } else if (file.includes("blocked") || lowerContent.match(/\b(blocked|stuck|waiting)\b/)) {
+        status = "blocked";
       }
       
       // Infer priority
