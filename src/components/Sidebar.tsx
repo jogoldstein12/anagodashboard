@@ -187,7 +187,7 @@ export function SidebarToggle({ onClick }: { onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="md:hidden fixed top-4 left-4 z-30 p-2.5 rounded-xl bg-white/10 backdrop-blur-md border border-white/10 text-white/80 hover:text-white hover:bg-white/15 transition-all"
+      className="md:hidden fixed top-4 left-4 z-[60] p-2.5 rounded-xl bg-white/10 backdrop-blur-md border border-white/10 text-white/80 hover:text-white hover:bg-white/15 transition-all"
       aria-label="Open sidebar"
     >
       <Menu className="w-5 h-5" />

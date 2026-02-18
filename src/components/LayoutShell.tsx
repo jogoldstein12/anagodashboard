@@ -7,14 +7,12 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <>
-      <SidebarToggle onClick={() => setSidebarOpen(true)} />
-      <div className="relative z-10 flex h-screen overflow-hidden">
-        <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 pt-16 md:pt-6 w-full">
-          {children}
-        </main>
-      </div>
-    </>
+    <div className="relative z-10 flex h-screen overflow-hidden">
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      {!sidebarOpen && <SidebarToggle onClick={() => setSidebarOpen(true)} />}
+      <main className="flex-1 overflow-y-auto p-4 md:p-6 pt-16 md:pt-6 w-full">
+        {children}
+      </main>
+    </div>
   );
 }
