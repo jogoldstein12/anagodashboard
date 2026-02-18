@@ -161,7 +161,7 @@ function inferAgent(session) {
   if (label.includes("greensea") || label.includes("green-sea") || label.includes("green sea")) return "greensea";
   if (label.includes("courtside")) return "courtside";
   if (label.includes("afterdark") || label.includes("after-dark") || label.includes("after dark")) return "afterdark";
-  if (label.includes("oracle") || label.includes("poly") || label.includes("polymarket") || label.includes("trading")) return "oracle";
+  if (label.includes("oracle") || label.includes("mako") || label.includes("poly") || label.includes("polymarket") || label.includes("trading")) return "mako";
   if (label.includes("mc-") || label.includes("mission-control") || label.includes("dashboard")) return "anago";
   
   return "anago";
@@ -430,7 +430,7 @@ async function syncTasks(state) {
       // Infer agent
       if (file.includes("iq") || content.match(/\biq\b|instantiq|instant.?iq/i)) agent = "iq";
       else if (file.includes("green-sea") || file.includes("greensea") || content.match(/green.?sea|capex|invoice|expense.?track/i)) agent = "greensea";
-      else if (file.includes("oracle") || file.includes("polymarket") || content.match(/oracle|polymarket|trading/i)) agent = "oracle";
+      else if (file.includes("oracle") || file.includes("mako") || file.includes("polymarket") || content.match(/oracle|mako|polymarket|trading/i)) agent = "mako";
       else if (file.includes("courtside") || content.match(/courtside|lovb/i)) agent = "courtside";
       else if (file.includes("afterdark") || content.match(/after.?dark|party.?game/i)) agent = "afterdark";
       
@@ -507,6 +507,146 @@ async function syncRecentActivity(state) {
   }
 }
 
+// ─── Sync Mako Trades from SQLite ────────────────────────────
+async function syncMako(state) {
+  console.log("\n🦈 Syncing Mako scalper trades...");
+
+  const DB_PATH = resolve(process.env.HOME, ".openclaw/workspace/projects/polymarket/trading/data/oracle.db");
+
+  // Check if DB exists
+  if (!existsSync(DB_PATH)) {
+    console.log("  ⚠️  Mako DB not found at", DB_PATH);
+    return;
+  }
+
+  // Track last synced trade ID
+  const lastSyncedId = state.lastMakoTradeId || 0;
+
+  // Query new trades from SQLite via CLI
+  const query = `SELECT id, ts, window_start, slug, direction, confidence, score, window_delta, token_price, outcome, pnl, bankroll_after, dry_run FROM scalp_trades WHERE id > ${lastSyncedId} ORDER BY id ASC LIMIT 100;`;
+  const raw = run(`sqlite3 -json "${DB_PATH}" "${query}"`);
+
+  if (!raw) {
+    console.log("  ⚠️  Could not query Mako DB");
+    return;
+  }
+
+  const trades = parseJson(raw);
+  if (!trades || !Array.isArray(trades) || trades.length === 0) {
+    console.log("  ℹ️  No new trades to sync");
+  } else {
+    let maxId = lastSyncedId;
+    for (const t of trades) {
+      await post("/api/sync/mako-trade", {
+        tradeId: String(t.id),
+        timestamp: t.ts * 1000,
+        windowStart: (t.window_start || 0) * 1000,
+        slug: t.slug || "",
+        direction: t.direction || "up",
+        confidence: t.confidence || 0,
+        score: t.score || 0,
+        windowDelta: t.window_delta || 0,
+        tokenPrice: t.token_price || 0,
+        outcome: t.outcome || "pending",
+        pnl: t.pnl || 0,
+        bankrollAfter: t.bankroll_after || 0,
+        dryRun: t.dry_run === 1 || t.dry_run === true,
+      });
+      if (t.id > maxId) maxId = t.id;
+    }
+    state.lastMakoTradeId = maxId;
+    console.log(`  ✅ ${trades.length} trades synced (last id: ${maxId})`);
+  }
+
+  // Compute aggregate stats for mako-status
+  const statsQuery = `SELECT
+    COUNT(*) as total,
+    SUM(CASE WHEN outcome='win' THEN 1 ELSE 0 END) as wins,
+    SUM(CASE WHEN outcome='loss' THEN 1 ELSE 0 END) as losses,
+    SUM(pnl) as total_pnl,
+    MAX(ts) as last_trade_ts
+    FROM scalp_trades;`;
+  const statsRaw = run(`sqlite3 -json "${DB_PATH}" "${statsQuery}"`);
+  const statsArr = parseJson(statsRaw);
+  const stats = statsArr && statsArr[0] ? statsArr[0] : null;
+
+  // Get latest bankroll
+  const brQuery = `SELECT bankroll_after, dry_run FROM scalp_trades ORDER BY id DESC LIMIT 1;`;
+  const brRaw = run(`sqlite3 -json "${DB_PATH}" "${brQuery}"`);
+  const brArr = parseJson(brRaw);
+  const latest = brArr && brArr[0] ? brArr[0] : null;
+
+  // Detect scalper process status
+  let makoStatus = "offline";
+  let makoMode = "dry-run";
+  const scalperPid = run("pgrep -f 'scalper.py' || true")?.trim();
+  if (scalperPid) {
+    makoStatus = "active";
+    // Check if --dry-run flag is present in process args
+    const procArgs = run(`ps -p ${scalperPid.split("\\n")[0]} -o args= 2>/dev/null || true`)?.trim() || "";
+    makoMode = procArgs.includes("--dry-run") ? "dry-run" : "live";
+  } else {
+    // Check log recency as fallback
+    try {
+      const logStat = run("stat -f '%m' ~/mako_trading/scalper.log 2>/dev/null || true")?.trim();
+      if (logStat) {
+        const logAge = Date.now() - parseInt(logStat) * 1000;
+        if (logAge < 300000) makoStatus = "idle";
+      }
+    } catch {}
+  }
+
+  if (latest && latest.dry_run === 1) makoMode = "dry-run";
+
+  const totalTrades = stats?.total || 0;
+  const wins = stats?.wins || 0;
+  const losses = stats?.losses || 0;
+  const winRate = totalTrades > 0 ? (wins / totalTrades) * 100 : 0;
+
+  await post("/api/sync/mako-status", {
+    status: makoStatus,
+    mode: makoMode,
+    bankroll: latest?.bankroll_after || 0,
+    totalPnl: stats?.total_pnl || 0,
+    totalTrades,
+    winRate: Math.round(winRate * 10) / 10,
+    wins,
+    losses,
+    walletUsdc: 0, // TODO: query on-chain balance
+    lastTradeAt: (stats?.last_trade_ts || 0) * 1000,
+  });
+  console.log(`  ✅ Status synced: ${makoStatus} (${makoMode}), ${totalTrades} trades, ${winRate.toFixed(1)}% WR`);
+
+  // Daily PnL summary
+  const dailyQuery = `SELECT
+    date(ts, 'unixepoch', 'localtime') as day,
+    COUNT(*) as trades,
+    SUM(CASE WHEN outcome='win' THEN 1 ELSE 0 END) as wins,
+    SUM(pnl) as pnl,
+    (SELECT bankroll_after FROM scalp_trades t2
+     WHERE date(t2.ts, 'unixepoch', 'localtime') = date(scalp_trades.ts, 'unixepoch', 'localtime')
+     ORDER BY t2.id DESC LIMIT 1) as bankroll_close
+    FROM scalp_trades
+    GROUP BY day
+    ORDER BY day DESC
+    LIMIT 30;`;
+  const dailyRaw = run(`sqlite3 -json "${DB_PATH}" "${dailyQuery}"`);
+  const dailyData = parseJson(dailyRaw);
+
+  if (dailyData && Array.isArray(dailyData)) {
+    for (const d of dailyData) {
+      await post("/api/sync/mako-pnl", {
+        date: d.day,
+        trades: d.trades || 0,
+        wins: d.wins || 0,
+        pnl: d.pnl || 0,
+        bankrollClose: d.bankroll_close || 0,
+      });
+    }
+    console.log(`  ✅ ${dailyData.length} daily PnL records synced`);
+  }
+}
+
 // ─── Main ───────────────────────────────────────────────────
 async function main() {
   console.log(`🚀 Mission Control Sync — ${new Date().toLocaleString()}`);
@@ -542,6 +682,7 @@ async function main() {
   await syncSessions(sessions, state);
   await syncTasks(state);
   await syncRecentActivity(state);
+  await syncMako(state);
   
   state.lastSync = Date.now();
   saveState(state);

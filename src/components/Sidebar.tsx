@@ -13,7 +13,7 @@ const NAV_ITEMS = [
   { href: "/", label: "Home", icon: Activity },
   { href: "/activity", label: "Activity Feed", icon: Activity },
   { href: "/agents", label: "Agents", icon: Users },
-  { href: "/oracle", label: "Oracle", icon: DollarSign },
+  { href: "/mako", label: "Mako", icon: DollarSign },
   { href: "/swarm", label: "Swarm", icon: Network },
   { href: "/calendar", label: "Calendar", icon: Calendar },
   { href: "/tasks", label: "Tasks", icon: ListTodo },

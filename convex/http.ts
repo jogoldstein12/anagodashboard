@@ -195,11 +195,11 @@ http.route({
   }),
 });
 
-// ORACLE SYNC ROUTES
+// MAKO SYNC ROUTES
 
-// POST /syncOracleStatus
+// POST /api/sync/mako-status
 http.route({
-  path: "/syncOracleStatus",
+  path: "/api/sync/mako-status",
   method: "POST",
   handler: httpAction(async (ctx, request) => {
     if (!checkAuth(request)) {
@@ -207,133 +207,26 @@ http.route({
     }
 
     const body = await request.json();
-    await ctx.runMutation(internal.oracle.syncOracleStatus, {
-      agentId: body.agentId,
+    await ctx.runMutation(internal.mako.syncMakoStatus, {
       status: body.status,
-      model: body.model,
-      uptimeSeconds: body.uptimeSeconds,
-      totalTurns: body.totalTurns,
-      totalTokens: body.totalTokens,
-      usdcBalance: body.usdcBalance,
-      ethBalance: body.ethBalance,
-      lastActivityTimestamp: body.lastActivityTimestamp,
-    });
-
-    return jsonResponse({ ok: true });
-  }),
-});
-
-// POST /syncOracleTrade
-http.route({
-  path: "/syncOracleTrade",
-  method: "POST",
-  handler: httpAction(async (ctx, request) => {
-    if (!checkAuth(request)) {
-      return jsonResponse({ error: "Unauthorized" }, 401);
-    }
-
-    const body = await request.json();
-    await ctx.runMutation(internal.oracle.syncOracleTrade, {
-      tradeId: body.tradeId,
-      marketId: body.marketId,
-      marketQuestion: body.marketQuestion,
-      outcome: body.outcome,
-      side: body.side,
-      price: body.price,
-      quantity: body.quantity,
-      amountUsd: body.amountUsd,
-      strategy: body.strategy,
-      pnl: body.pnl,
-      closed: body.closed,
-      timestamp: body.timestamp,
-      closedAt: body.closedAt,
-      stopLossPrice: body.stopLossPrice,
-      notes: body.notes,
-    });
-
-    return jsonResponse({ ok: true });
-  }),
-});
-
-// POST /syncOraclePosition
-http.route({
-  path: "/syncOraclePosition",
-  method: "POST",
-  handler: httpAction(async (ctx, request) => {
-    if (!checkAuth(request)) {
-      return jsonResponse({ error: "Unauthorized" }, 401);
-    }
-
-    const body = await request.json();
-    await ctx.runMutation(internal.oracle.syncOraclePosition, {
-      positionId: body.positionId,
-      marketId: body.marketId,
-      marketQuestion: body.marketQuestion,
-      outcome: body.outcome,
-      entryPrice: body.entryPrice,
-      currentPrice: body.currentPrice,
-      unrealizedPnl: body.unrealizedPnl,
-      positionSizeUsd: body.positionSizeUsd,
-      strategy: body.strategy,
-      timeHeldSeconds: body.timeHeldSeconds,
-      timestamp: body.timestamp,
-    });
-
-    return jsonResponse({ ok: true });
-  }),
-});
-
-// POST /syncOraclePnl
-http.route({
-  path: "/syncOraclePnl",
-  method: "POST",
-  handler: httpAction(async (ctx, request) => {
-    if (!checkAuth(request)) {
-      return jsonResponse({ error: "Unauthorized" }, 401);
-    }
-
-    const body = await request.json();
-    await ctx.runMutation(internal.oracle.syncOraclePnl, {
-      date: body.date,
-      totalRealizedPnl: body.totalRealizedPnl,
-      todaysPnl: body.todaysPnl,
-      unrealizedPnl: body.unrealizedPnl,
-      winRate: body.winRate,
-      roiPercent: body.roiPercent,
-      totalTrades: body.totalTrades,
-      winningTrades: body.winningTrades,
-    });
-
-    return jsonResponse({ ok: true });
-  }),
-});
-
-// POST /syncOracleStrategyPerformance
-http.route({
-  path: "/syncOracleStrategyPerformance",
-  method: "POST",
-  handler: httpAction(async (ctx, request) => {
-    if (!checkAuth(request)) {
-      return jsonResponse({ error: "Unauthorized" }, 401);
-    }
-
-    const body = await request.json();
-    await ctx.runMutation(internal.oracle.syncOracleStrategyPerformance, {
-      strategy: body.strategy,
-      totalTrades: body.totalTrades,
-      winningTrades: body.winningTrades,
+      mode: body.mode,
+      bankroll: body.bankroll,
       totalPnl: body.totalPnl,
+      totalTrades: body.totalTrades,
       winRate: body.winRate,
-      avgPnlPerTrade: body.avgPnlPerTrade,
+      wins: body.wins,
+      losses: body.losses,
+      walletUsdc: body.walletUsdc,
+      lastTradeAt: body.lastTradeAt,
     });
 
     return jsonResponse({ ok: true });
   }),
 });
 
-// POST /syncOracleActivityLog
+// POST /api/sync/mako-trade
 http.route({
-  path: "/syncOracleActivityLog",
+  path: "/api/sync/mako-trade",
   method: "POST",
   handler: httpAction(async (ctx, request) => {
     if (!checkAuth(request)) {
@@ -341,15 +234,42 @@ http.route({
     }
 
     const body = await request.json();
-    await ctx.runMutation(internal.oracle.syncOracleActivityLog, {
-      turnId: body.turnId,
-      agentId: body.agentId,
-      status: body.status,
-      prompt: body.prompt,
-      toolCalls: body.toolCalls,
-      tokenUsage: body.tokenUsage,
-      durationMs: body.durationMs,
+    await ctx.runMutation(internal.mako.syncMakoTrade, {
+      tradeId: body.tradeId,
       timestamp: body.timestamp,
+      windowStart: body.windowStart,
+      slug: body.slug,
+      direction: body.direction,
+      confidence: body.confidence,
+      score: body.score,
+      windowDelta: body.windowDelta,
+      tokenPrice: body.tokenPrice,
+      outcome: body.outcome,
+      pnl: body.pnl,
+      bankrollAfter: body.bankrollAfter,
+      dryRun: body.dryRun,
+    });
+
+    return jsonResponse({ ok: true });
+  }),
+});
+
+// POST /api/sync/mako-pnl
+http.route({
+  path: "/api/sync/mako-pnl",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    if (!checkAuth(request)) {
+      return jsonResponse({ error: "Unauthorized" }, 401);
+    }
+
+    const body = await request.json();
+    await ctx.runMutation(internal.mako.syncMakoPnl, {
+      date: body.date,
+      trades: body.trades,
+      wins: body.wins,
+      pnl: body.pnl,
+      bankrollClose: body.bankrollClose,
     });
 
     return jsonResponse({ ok: true });
