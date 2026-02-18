@@ -158,4 +158,99 @@ export default defineSchema({
   })
     .index("by_status", ["status", "createdAt"])
     .index("by_agent", ["agent", "createdAt"]),
+
+  // ORACLE TRADING TABLES
+  oracle_status: defineTable({
+    agentId: v.string(),
+    status: v.string(), // running, sleeping, dead
+    model: v.string(),
+    uptimeSeconds: v.number(),
+    totalTurns: v.number(),
+    totalTokens: v.number(),
+    usdcBalance: v.number(),
+    ethBalance: v.number(),
+    lastActivityTimestamp: v.number(),
+    lastSyncTimestamp: v.number(),
+  })
+    .index("by_agentId", ["agentId"])
+    .index("by_lastSync", ["lastSyncTimestamp"]),
+
+  oracle_trades: defineTable({
+    tradeId: v.string(),
+    marketId: v.string(),
+    marketQuestion: v.string(),
+    outcome: v.string(),
+    side: v.string(), // BUY or SELL
+    price: v.number(),
+    quantity: v.number(),
+    amountUsd: v.number(),
+    strategy: v.string(),
+    pnl: v.number(),
+    closed: v.boolean(),
+    timestamp: v.number(),
+    closedAt: v.optional(v.number()),
+    stopLossPrice: v.optional(v.number()),
+    notes: v.optional(v.string()),
+  })
+    .index("by_tradeId", ["tradeId"])
+    .index("by_market", ["marketId", "timestamp"])
+    .index("by_strategy", ["strategy", "timestamp"])
+    .index("by_closed", ["closed", "timestamp"]),
+
+  oracle_positions: defineTable({
+    positionId: v.string(),
+    marketId: v.string(),
+    marketQuestion: v.string(),
+    outcome: v.string(),
+    entryPrice: v.number(),
+    currentPrice: v.number(),
+    unrealizedPnl: v.number(),
+    positionSizeUsd: v.number(),
+    strategy: v.string(),
+    timeHeldSeconds: v.number(),
+    timestamp: v.number(),
+  })
+    .index("by_positionId", ["positionId"])
+    .index("by_market", ["marketId"])
+    .index("by_strategy", ["strategy"]),
+
+  oracle_pnl: defineTable({
+    date: v.string(), // YYYY-MM-DD
+    totalRealizedPnl: v.number(),
+    todaysPnl: v.number(),
+    unrealizedPnl: v.number(),
+    winRate: v.number(),
+    roiPercent: v.number(),
+    totalTrades: v.number(),
+    winningTrades: v.number(),
+    timestamp: v.number(),
+  })
+    .index("by_date", ["date"])
+    .index("by_timestamp", ["timestamp"]),
+
+  oracle_strategy_performance: defineTable({
+    strategy: v.string(),
+    totalTrades: v.number(),
+    winningTrades: v.number(),
+    totalPnl: v.number(),
+    winRate: v.number(),
+    avgPnlPerTrade: v.number(),
+    lastUpdated: v.number(),
+  })
+    .index("by_strategy", ["strategy"])
+    .index("by_pnl", ["totalPnl"]),
+
+  oracle_activity_log: defineTable({
+    turnId: v.string(),
+    agentId: v.string(),
+    status: v.string(),
+    prompt: v.optional(v.string()),
+    toolCalls: v.optional(v.array(v.any())),
+    tokenUsage: v.optional(v.any()),
+    durationMs: v.number(),
+    timestamp: v.number(),
+  })
+    .index("by_turnId", ["turnId"])
+    .index("by_agent", ["agentId", "timestamp"])
+    .index("by_timestamp", ["timestamp"]),
 });

@@ -151,3 +151,35 @@ export const syncNotification = internalMutation({
     return await ctx.db.insert("notifications", args);
   },
 });
+
+export const syncTask = internalMutation({
+  args: {
+    taskId: v.string(),
+    title: v.string(),
+    description: v.string(),
+    agent: v.string(),
+    priority: v.string(),
+    status: v.string(),
+    dueDate: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    completedAt: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("tasks")
+      .filter((q: any) => q.eq(q.field("_id"), args.taskId))
+      .first();
+
+    if (existing) {
+      const { taskId, ...updates } = args;
+      await ctx.db.patch(existing._id, updates);
+      return existing._id;
+    } else {
+      return await ctx.db.insert("tasks", {
+        ...args,
+        _id: args.taskId as any,
+      });
+    }
+  },
+});

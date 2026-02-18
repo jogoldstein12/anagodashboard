@@ -121,6 +121,27 @@ function estimateCost(model, tokensIn, tokensOut) {
   return Math.round((inputCost + outputCost) * 10000) / 10000; // 4 decimal places
 }
 
+function getActualTokens(session) {
+  // Use actual inputTokens and outputTokens if available
+  // Some sessions might have totalTokens as context window size, not actual usage
+  let tokensIn = session.inputTokens || 0;
+  let tokensOut = session.outputTokens || 0;
+  
+  // If we have reasonable token counts, use them
+  if (tokensIn > 0 || tokensOut > 0) {
+    return { tokensIn, tokensOut };
+  }
+  
+  // Fallback: estimate from totalTokens if it seems reasonable (not context window)
+  const total = session.totalTokens || 0;
+  if (total > 0 && total < 100000) { // Reasonable token count, not context window
+    tokensIn = Math.round(total * 0.3);
+    tokensOut = Math.round(total * 0.7);
+  }
+  
+  return { tokensIn, tokensOut };
+}
+
 function inferAgent(session) {
   const key = session.key || "";
   const label = session.label || session.displayName || "";
@@ -148,15 +169,15 @@ async function syncAgents(sessions) {
   const agentStats = {};
   for (const s of sessions) {
     const agent = inferAgent(s);
-    if (!agentStats[agent]) agentStats[agent] = { tokens: 0, sessions: 0, cost: 0, lastActive: 0 };
+    if (!agentStats[agent]) agentStats[agent] = { tokens: 0, sessions: 0, cost: 0, lastActive: 0, actualTokensIn: 0, actualTokensOut: 0 };
     agentStats[agent].tokens += s.totalTokens || 0;
     agentStats[agent].sessions += 1;
     agentStats[agent].lastActive = Math.max(agentStats[agent].lastActive, s.updatedAt || 0);
     
-    // Estimate cost — assume 30% input, 70% output for typical assistant pattern
-    const total = s.totalTokens || 0;
-    const tokensIn = Math.round(total * 0.3);
-    const tokensOut = Math.round(total * 0.7);
+    // Use actual token counts when available
+    const { tokensIn, tokensOut } = getActualTokens(s);
+    agentStats[agent].actualTokensIn += tokensIn;
+    agentStats[agent].actualTokensOut += tokensOut;
     agentStats[agent].cost += estimateCost(s.model, tokensIn, tokensOut);
   }
 
@@ -165,7 +186,7 @@ async function syncAgents(sessions) {
     const result = await post("/api/sync/agent-status", {
       agentId: agent.agentId,
       status: stats.lastActive && (Date.now() - stats.lastActive) < 3600000 ? "active" : "idle",
-      tokensToday: stats.tokens || 0,
+      tokensToday: (stats.actualTokensIn || 0) + (stats.actualTokensOut || 0),
       tasksToday: stats.sessions || 0,
       lastActive: stats.lastActive || Date.now(),
       costToday: Math.round((stats.cost || 0) * 100) / 100,
@@ -212,14 +233,17 @@ async function syncSessions(sessions, state) {
   console.log("\n📡 Syncing sessions + costs...");
   
   let synced = 0;
+  let totalActualCost = 0;
+  
   for (const s of sessions) {
     const sessionId = s.sessionId || s.key;
     const agent = inferAgent(s);
     const model = s.model || "unknown";
-    const totalTokens = s.totalTokens || 0;
-    const tokensIn = Math.round(totalTokens * 0.3);
-    const tokensOut = Math.round(totalTokens * 0.7);
+    
+    // Use actual token counts when available
+    const { tokensIn, tokensOut } = getActualTokens(s);
     const cost = estimateCost(model, tokensIn, tokensOut);
+    totalActualCost += cost;
     
     // Sync session
     await post("/api/sync/session", {
@@ -258,13 +282,94 @@ async function syncSessions(sessions, state) {
   state.syncedSessionIds = state.syncedSessionIds.slice(-100);
   
   console.log(`  ✅ ${synced} sessions synced with cost data`);
+  console.log(`  💰 Actual total cost across sessions: $${totalActualCost.toFixed(2)}`);
+}
+
+// ─── Sync Tasks from Workspace ─────────────────────────
+async function syncTasks(state) {
+  console.log("\n📝 Syncing tasks from workspace...");
   
-  // Print cost summary
-  const totalCost = sessions.reduce((sum, s) => {
-    const total = s.totalTokens || 0;
-    return sum + estimateCost(s.model, Math.round(total * 0.3), Math.round(total * 0.7));
-  }, 0);
-  console.log(`  💰 Estimated total cost across sessions: $${totalCost.toFixed(2)}`);
+  const workspaceDir = resolve(ROOT, "..", "..", ".openclaw", "workspace");
+  const tasksDir = resolve(workspaceDir, "tasks");
+  
+  try {
+    const files = readdirSync(tasksDir).filter(f => f.endsWith(".md"));
+    let count = 0;
+    
+    for (const file of files) {
+      const filePath = resolve(tasksDir, file);
+      const content = readFileSync(filePath, "utf-8");
+      const lines = content.split("\n");
+      
+      // Extract task info from markdown
+      const title = lines[0].replace(/^#+\s*/, "").trim();
+      if (!title) continue;
+      
+      // Generate a stable task ID from filename
+      const taskId = `task_${file.replace(/[^a-z0-9]/gi, "_").toLowerCase()}`;
+      
+      // Parse task metadata
+      let description = "";
+      let agent = "anago";
+      let priority = "p2";
+      let status = "up_next";
+      let dueDate = null;
+      let createdAt = Date.now();
+      let updatedAt = Date.now();
+      let completedAt = null;
+      
+      // Simple parsing of markdown content
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (line.startsWith("## Goal") || line.startsWith("## Description")) {
+          description = lines.slice(i + 1).join("\n").substring(0, 500);
+          break;
+        }
+      }
+      
+      if (!description) {
+        description = content.substring(0, 500);
+      }
+      
+      // Infer status from filename/content
+      if (file.includes("complete") || file.includes("done") || content.match(/completed|done|finished/i)) {
+        status = "done";
+        completedAt = Date.now() - 86400000; // Assume completed yesterday
+      } else if (file.includes("in-progress") || content.match(/in progress|working on|active/i)) {
+        status = "in_progress";
+      }
+      
+      // Infer priority
+      if (file.includes("p0") || content.match(/urgent|critical|p0/i)) priority = "p0";
+      else if (file.includes("p1") || content.match(/high priority|p1/i)) priority = "p1";
+      else if (file.includes("p3") || content.match(/low priority|p3/i)) priority = "p3";
+      
+      // Infer agent
+      if (file.includes("iq") || content.match(/iq|instant/i)) agent = "iq";
+      else if (file.includes("greensea") || content.match(/greensea/i)) agent = "greensea";
+      else if (file.includes("courtside") || content.match(/courtside/i)) agent = "courtside";
+      else if (file.includes("afterdark") || content.match(/after dark/i)) agent = "afterdark";
+      
+      await post("/api/sync/task", {
+        taskId,
+        title,
+        description,
+        agent,
+        priority,
+        status,
+        dueDate,
+        createdAt,
+        updatedAt,
+        completedAt,
+      });
+      
+      count++;
+    }
+    
+    console.log(`  ✅ ${count} tasks synced`);
+  } catch (err) {
+    console.log(`  ⚠️  Error syncing tasks: ${err.message}`);
+  }
 }
 
 // ─── Sync Activity from Memory ──────────────────────────────

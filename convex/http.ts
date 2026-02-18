@@ -168,4 +168,31 @@ http.route({
   }),
 });
 
+// POST /api/sync/task
+http.route({
+  path: "/api/sync/task",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    if (!checkAuth(request)) {
+      return jsonResponse({ error: "Unauthorized" }, 401);
+    }
+
+    const body = await request.json();
+    await ctx.runMutation(internal.sync.syncTask, {
+      taskId: body.taskId,
+      title: body.title,
+      description: body.description ?? "",
+      agent: body.agent,
+      priority: body.priority ?? "p2",
+      status: body.status ?? "up_next",
+      dueDate: body.dueDate,
+      createdAt: body.createdAt ?? Date.now(),
+      updatedAt: body.updatedAt ?? Date.now(),
+      completedAt: body.completedAt,
+    });
+
+    return jsonResponse({ ok: true });
+  }),
+});
+
 export default http;
