@@ -144,13 +144,24 @@ function getActualTokens(session) {
 
 function inferAgent(session) {
   const key = session.key || "";
-  const label = session.label || session.displayName || "";
+  const label = (session.label || session.displayName || session.subject || "").toLowerCase();
+  const model = (session.model || "").toLowerCase();
   
-  if (key.includes("agent:iq:") || label.toLowerCase().includes("iq")) return "iq";
-  if (key.includes("agent:greensea:") || label.toLowerCase().includes("greensea")) return "greensea";
-  if (key.includes("agent:courtside:") || label.toLowerCase().includes("courtside")) return "courtside";
-  if (key.includes("agent:afterdark:") || label.toLowerCase().includes("after")) return "afterdark";
-  if (key.includes("agent:oracle:") || label.toLowerCase().includes("oracle")) return "oracle";
+  // Check key prefix (named agent sessions)
+  if (key.includes("agent:iq:")) return "iq";
+  if (key.includes("agent:greensea:")) return "greensea";
+  if (key.includes("agent:courtside:")) return "courtside";
+  if (key.includes("agent:afterdark:")) return "afterdark";
+  if (key.includes("agent:oracle:") || key.includes("agent:poly:")) return "oracle";
+  
+  // Check labels (sub-agent sessions spawned from main)
+  if (label.includes("iq") || label.includes("instantiq")) return "iq";
+  if (label.includes("greensea") || label.includes("green-sea") || label.includes("green sea")) return "greensea";
+  if (label.includes("courtside")) return "courtside";
+  if (label.includes("afterdark") || label.includes("after-dark") || label.includes("after dark")) return "afterdark";
+  if (label.includes("oracle") || label.includes("poly") || label.includes("polymarket") || label.includes("trading")) return "oracle";
+  if (label.includes("mc-") || label.includes("mission-control") || label.includes("dashboard")) return "anago";
+  
   return "anago";
 }
 
@@ -221,6 +232,24 @@ async function syncAgents(sessions) {
       status = "active";
     } else if (!agentExists) {
       status = "offline";
+    }
+    
+    // Special Oracle detection — runs as standalone Automaton process
+    if (agent.agentId === "oracle") {
+      try {
+        const oracleProc = run("pgrep -f 'automaton.*--run' || true").trim();
+        if (oracleProc) {
+          status = "active";
+          // Check log recency
+          try {
+            const logStat = run("stat -f '%m' ~/.automaton/oracle.log 2>/dev/null || true").trim();
+            if (logStat) {
+              const logAge = Date.now() - parseInt(logStat) * 1000;
+              if (logAge < 300000) status = "active"; // log updated in last 5 min
+            }
+          } catch {}
+        }
+      } catch {}
     }
     
     const result = await post("/api/sync/agent-status", {
@@ -397,10 +426,11 @@ async function syncTasks(state) {
       else if (file.includes("p3") || content.match(/low priority|p3/i)) priority = "p3";
       
       // Infer agent
-      if (file.includes("iq") || content.match(/iq|instant/i)) agent = "iq";
-      else if (file.includes("greensea") || content.match(/greensea/i)) agent = "greensea";
-      else if (file.includes("courtside") || content.match(/courtside/i)) agent = "courtside";
-      else if (file.includes("afterdark") || content.match(/after dark/i)) agent = "afterdark";
+      if (file.includes("iq") || content.match(/\biq\b|instantiq|instant.?iq/i)) agent = "iq";
+      else if (file.includes("green-sea") || file.includes("greensea") || content.match(/green.?sea|capex|invoice|expense.?track/i)) agent = "greensea";
+      else if (file.includes("oracle") || file.includes("polymarket") || content.match(/oracle|polymarket|trading/i)) agent = "oracle";
+      else if (file.includes("courtside") || content.match(/courtside|lovb/i)) agent = "courtside";
+      else if (file.includes("afterdark") || content.match(/after.?dark|party.?game/i)) agent = "afterdark";
       
       await post("/api/sync/task", {
         taskId,
