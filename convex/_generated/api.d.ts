@@ -15,6 +15,7 @@ import type * as costEntries from "../costEntries.js";
 import type * as documents from "../documents.js";
 import type * as http from "../http.js";
 import type * as notifications from "../notifications.js";
+import type * as oracle from "../oracle.js";
 import type * as scheduledTasks from "../scheduledTasks.js";
 import type * as seed from "../seed.js";
 import type * as sessions from "../sessions.js";
@@ -35,6 +36,7 @@ declare const fullApi: ApiFromModules<{
   documents: typeof documents;
   http: typeof http;
   notifications: typeof notifications;
+  oracle: typeof oracle;
   scheduledTasks: typeof scheduledTasks;
   seed: typeof seed;
   sessions: typeof sessions;
