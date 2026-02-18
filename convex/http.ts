@@ -185,10 +185,10 @@ http.route({
       agent: body.agent,
       priority: body.priority ?? "p2",
       status: body.status ?? "up_next",
-      dueDate: body.dueDate,
+      dueDate: body.dueDate ?? undefined,
       createdAt: body.createdAt ?? Date.now(),
       updatedAt: body.updatedAt ?? Date.now(),
-      completedAt: body.completedAt,
+      completedAt: body.completedAt ?? undefined,
     });
 
     return jsonResponse({ ok: true });
