@@ -12,7 +12,7 @@
  */
 
 import { execSync } from "child_process";
-import { readFileSync, writeFileSync, existsSync } from "fs";
+import { readFileSync, writeFileSync, existsSync, readdirSync } from "fs";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 
@@ -150,6 +150,7 @@ function inferAgent(session) {
   if (key.includes("agent:greensea:") || label.toLowerCase().includes("greensea")) return "greensea";
   if (key.includes("agent:courtside:") || label.toLowerCase().includes("courtside")) return "courtside";
   if (key.includes("agent:afterdark:") || label.toLowerCase().includes("after")) return "afterdark";
+  if (key.includes("agent:oracle:") || label.toLowerCase().includes("oracle")) return "oracle";
   return "anago";
 }
 
@@ -157,19 +158,33 @@ function inferAgent(session) {
 async function syncAgents(sessions) {
   console.log("\n🤖 Syncing agents...");
   
+  // Get actual agent list from OpenClaw
+  const agentsRaw = run("openclaw agents list --json");
+  const agentsList = parseJson(agentsRaw) || [];
+  
   const agentDefs = [
     { agentId: "anago", name: "Anago", emoji: "🍣", model: "claude-opus-4-6", trustLevel: "L3", color: "#3b82f6" },
     { agentId: "iq", name: "IQ", emoji: "🧠", model: "kimi-k2.5", trustLevel: "L1", color: "#22c55e" },
     { agentId: "greensea", name: "GreenSea", emoji: "🌊", model: "kimi-k2.5", trustLevel: "L1", color: "#10b981" },
     { agentId: "courtside", name: "Courtside", emoji: "🏀", model: "haiku-3.5", trustLevel: "L1", color: "#f97316" },
     { agentId: "afterdark", name: "After Dark", emoji: "🌙", model: "haiku-3.5", trustLevel: "L1", color: "#a855f7" },
+    { agentId: "oracle", name: "Oracle", emoji: "🔮", model: "claude-sonnet-4-6", trustLevel: "L2", color: "#f59e0b" },
   ];
 
   // Calculate per-agent stats from sessions
   const agentStats = {};
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const todayStartMs = todayStart.getTime();
+  
   for (const s of sessions) {
     const agent = inferAgent(s);
-    if (!agentStats[agent]) agentStats[agent] = { tokens: 0, sessions: 0, cost: 0, lastActive: 0, actualTokensIn: 0, actualTokensOut: 0 };
+    if (!agentStats[agent]) agentStats[agent] = { 
+      tokens: 0, sessions: 0, cost: 0, lastActive: 0, 
+      actualTokensIn: 0, actualTokensOut: 0,
+      tokensToday: 0, sessionsToday: 0, costToday: 0 
+    };
+    
     agentStats[agent].tokens += s.totalTokens || 0;
     agentStats[agent].sessions += 1;
     agentStats[agent].lastActive = Math.max(agentStats[agent].lastActive, s.updatedAt || 0);
@@ -178,20 +193,42 @@ async function syncAgents(sessions) {
     const { tokensIn, tokensOut } = getActualTokens(s);
     agentStats[agent].actualTokensIn += tokensIn;
     agentStats[agent].actualTokensOut += tokensOut;
-    agentStats[agent].cost += estimateCost(s.model, tokensIn, tokensOut);
+    const cost = estimateCost(s.model, tokensIn, tokensOut);
+    agentStats[agent].cost += cost;
+    
+    // Calculate today's stats
+    if (s.updatedAt && s.updatedAt >= todayStartMs) {
+      agentStats[agent].tokensToday += tokensIn + tokensOut;
+      agentStats[agent].sessionsToday += 1;
+      agentStats[agent].costToday += cost;
+    }
   }
 
   for (const agent of agentDefs) {
     const stats = agentStats[agent.agentId] || {};
+    
+    // Check if agent exists in OpenClaw agents list
+    const agentExists = agentsList.some(a => a.id === agent.agentId || a.name === agent.name);
+    
+    // Determine status: active if recent activity AND agent exists in OpenClaw
+    let status = "idle";
+    if (agentExists && stats.lastActive && (Date.now() - stats.lastActive) < 3600000) {
+      status = "active";
+    } else if (!agentExists) {
+      status = "offline";
+    }
+    
     const result = await post("/api/sync/agent-status", {
       agentId: agent.agentId,
-      status: stats.lastActive && (Date.now() - stats.lastActive) < 3600000 ? "active" : "idle",
-      tokensToday: (stats.actualTokensIn || 0) + (stats.actualTokensOut || 0),
-      tasksToday: stats.sessions || 0,
+      status,
+      tokensToday: stats.tokensToday || 0,
+      tasksToday: stats.sessionsToday || 0,
       lastActive: stats.lastActive || Date.now(),
-      costToday: Math.round((stats.cost || 0) * 100) / 100,
+      costToday: Math.round((stats.costToday || 0) * 100) / 100,
+      costWeek: Math.round((stats.cost || 0) * 100) / 100, // All-time cost for now
+      costMonth: Math.round((stats.cost || 0) * 100) / 100, // All-time cost for now
     });
-    if (result) console.log(`  ✅ ${agent.name} (${stats.sessions || 0} sessions, $${(stats.cost || 0).toFixed(2)})`);
+    if (result) console.log(`  ✅ ${agent.name} (${status}, ${stats.sessionsToday || 0} today, $${(stats.costToday || 0).toFixed(2)} today)`);
   }
 }
 
@@ -456,6 +493,7 @@ async function main() {
   await syncAgents(sessions);
   await syncCronJobs();
   await syncSessions(sessions, state);
+  await syncTasks(state);
   await syncRecentActivity(state);
   
   state.lastSync = Date.now();

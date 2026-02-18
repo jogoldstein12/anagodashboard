@@ -166,19 +166,33 @@ export const syncTask = internalMutation({
     completedAt: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const existing = await ctx.db
+    // Look for existing task with same title and agent
+    const existingTasks = await ctx.db
       .query("tasks")
-      .filter((q: any) => q.eq(q.field("_id"), args.taskId))
-      .first();
+      .filter((q: any) => 
+        q.eq(q.field("title"), args.title) &&
+        q.eq(q.field("agent"), args.agent)
+      )
+      .collect();
 
-    if (existing) {
+    if (existingTasks.length > 0) {
+      // Update the first matching task
+      const existing = existingTasks[0];
       const { taskId, ...updates } = args;
       await ctx.db.patch(existing._id, updates);
       return existing._id;
     } else {
+      // Create new task
       return await ctx.db.insert("tasks", {
-        ...args,
-        _id: args.taskId as any,
+        title: args.title,
+        description: args.description,
+        agent: args.agent,
+        priority: args.priority,
+        status: args.status,
+        dueDate: args.dueDate,
+        createdAt: args.createdAt,
+        updatedAt: args.updatedAt,
+        completedAt: args.completedAt,
       });
     }
   },
