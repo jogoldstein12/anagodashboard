@@ -49,6 +49,10 @@ export const seedAll = mutation({
       { agent: "anago", action: "message_sent", title: "Telegram message to Josh", description: "Sent IQ's competitor audit results and Reddit warmup comments to Josh on Telegram for review.", status: "completed", timestamp: now - 4 * hour },
       { agent: "iq", action: "file_created", title: "Reddit Launch Playbook saved", description: "Extracted 60K-char Reddit Launch Playbook from Josh's Claude History. Saved to projects/instantiq/REDDIT_LAUNCH_PLAYBOOK.md.", status: "completed", timestamp: now - 6.5 * hour },
       { agent: "iq", action: "file_created", title: "InstantIQ docs organized", description: "Saved all 8 InstantIQ project docs to projects/instantiq/docs/ — README, ROADMAP, deployment guides, etc.", status: "completed", timestamp: now - 6.5 * hour },
+      { agent: "oracle", action: "task_completed", title: "Agent registered", description: "Oracle trading agent created for Polymarket prediction markets. Specializes in resolution sniping, whale copy-trading, and news-driven strategies.", status: "completed", timestamp: now - 2 * hour },
+      { agent: "oracle", action: "browser_action", title: "Market data refresh", description: "Refreshed market data for 50+ Polymarket markets. Identified 3 high-conviction opportunities with >70% probability.", status: "completed", timestamp: now - 1.5 * hour },
+      { agent: "oracle", action: "task_completed", title: "First trade executed", description: "Executed first trade on Polymarket: $50 on 'Will Trump be the 2024 Republican nominee?' at 92% probability.", status: "completed", timestamp: now - 1 * hour },
+      { agent: "oracle", action: "file_created", title: "Trading strategy module", description: "Created trading_tasks.py with 6 strategies: market_refresh, resolution_sniping, whale_tracking, arbitrage_scan, risk_check, status_update.", status: "completed", timestamp: now - 0.5 * hour },
     ];
 
     for (const a of activities) {
@@ -65,6 +69,10 @@ export const seedAll = mutation({
       { name: "EOD Report", agent: "anago", schedule: "Weekdays at 5:00 PM", cronExpr: "0 17 * * 1-5", timezone: "America/New_York", nextRun: now + day, status: "active", description: "End-of-day summary report for all agents. What was accomplished, blockers, next steps." },
       { name: "Morning Report", agent: "anago", schedule: "Daily at 9:00 AM", cronExpr: "0 9 * * *", timezone: "America/New_York", nextRun: now + 16 * hour, status: "active", description: "Morning briefing: overnight work summary, today's priorities, calendar events." },
       { name: "Twitter Bookmarks Digest", agent: "anago", schedule: "Daily at 9:00 AM", cronExpr: "0 9 * * *", timezone: "America/New_York", nextRun: now + 16 * hour, status: "active", description: "Browse Josh's Twitter bookmarks from last 24h, compile digest with summaries, takeaways, and proposed improvements. Email to jogoldstein12@gmail.com." },
+      { name: "Oracle Market Refresh", agent: "oracle", schedule: "Every 10 minutes", cronExpr: "*/10 * * * *", timezone: "UTC", nextRun: now + 10 * 60 * 1000, status: "active", description: "Refresh Polymarket market data, identify trading opportunities, execute high-conviction trades." },
+      { name: "Oracle Resolution Sniping", agent: "oracle", schedule: "Every 10 minutes", cronExpr: "*/10 * * * *", timezone: "UTC", nextRun: now + 10 * 60 * 1000, status: "active", description: "Scan for markets nearing resolution, identify mispriced outcomes, execute sniping trades." },
+      { name: "Oracle Whale Tracking", agent: "oracle", schedule: "Every 5 minutes", cronExpr: "*/5 * * * *", timezone: "UTC", nextRun: now + 5 * 60 * 1000, status: "active", description: "Track large whale trades on Polymarket, analyze patterns, execute copy trades." },
+      { name: "Oracle Status Update", agent: "oracle", schedule: "Daily at midnight", cronExpr: "0 0 * * *", timezone: "UTC", nextRun: now + day, status: "active", description: "Send daily status update with P&L, positions, and trading activity to Josh." },
     ];
 
     for (const t of tasks) {
@@ -99,6 +107,7 @@ export const seedAll = mutation({
       { agentId: "greensea", name: "GreenSea", emoji: "🏠", model: "kimi-k2.5", trustLevel: "L1", status: "idle", color: "#10b981", tokensToday: 0, tasksToday: 0, tasksTotal: 1, lastActive: now - 7 * hour },
       { agentId: "courtside", name: "Courtside", emoji: "🏐", model: "claude-haiku-3.5", trustLevel: "L1", status: "idle", color: "#f97316", tokensToday: 0, tasksToday: 0, tasksTotal: 1, lastActive: now - 7 * hour },
       { agentId: "afterdark", name: "After Dark", emoji: "🎉", model: "claude-haiku-3.5", trustLevel: "L1", status: "offline", color: "#a855f7", tokensToday: 0, tasksToday: 0, tasksTotal: 1, lastActive: now - 7 * hour },
+      { agentId: "oracle", name: "Oracle", emoji: "🔮", model: "claude-sonnet-4-6", trustLevel: "L2", status: "active", color: "#f59e0b", currentTask: "Trading on Polymarket", tokensToday: 3200, tasksToday: 3, tasksTotal: 8, lastActive: now - 0.25 * hour },
     ];
     for (const a of agentsData) {
       await ctx.db.insert("agents", a);

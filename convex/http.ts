@@ -195,4 +195,165 @@ http.route({
   }),
 });
 
+// ORACLE SYNC ROUTES
+
+// POST /syncOracleStatus
+http.route({
+  path: "/syncOracleStatus",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    if (!checkAuth(request)) {
+      return jsonResponse({ error: "Unauthorized" }, 401);
+    }
+
+    const body = await request.json();
+    await ctx.runMutation(internal.oracle.syncOracleStatus, {
+      agentId: body.agentId,
+      status: body.status,
+      model: body.model,
+      uptimeSeconds: body.uptimeSeconds,
+      totalTurns: body.totalTurns,
+      totalTokens: body.totalTokens,
+      usdcBalance: body.usdcBalance,
+      ethBalance: body.ethBalance,
+      lastActivityTimestamp: body.lastActivityTimestamp,
+    });
+
+    return jsonResponse({ ok: true });
+  }),
+});
+
+// POST /syncOracleTrade
+http.route({
+  path: "/syncOracleTrade",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    if (!checkAuth(request)) {
+      return jsonResponse({ error: "Unauthorized" }, 401);
+    }
+
+    const body = await request.json();
+    await ctx.runMutation(internal.oracle.syncOracleTrade, {
+      tradeId: body.tradeId,
+      marketId: body.marketId,
+      marketQuestion: body.marketQuestion,
+      outcome: body.outcome,
+      side: body.side,
+      price: body.price,
+      quantity: body.quantity,
+      amountUsd: body.amountUsd,
+      strategy: body.strategy,
+      pnl: body.pnl,
+      closed: body.closed,
+      timestamp: body.timestamp,
+      closedAt: body.closedAt,
+      stopLossPrice: body.stopLossPrice,
+      notes: body.notes,
+    });
+
+    return jsonResponse({ ok: true });
+  }),
+});
+
+// POST /syncOraclePosition
+http.route({
+  path: "/syncOraclePosition",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    if (!checkAuth(request)) {
+      return jsonResponse({ error: "Unauthorized" }, 401);
+    }
+
+    const body = await request.json();
+    await ctx.runMutation(internal.oracle.syncOraclePosition, {
+      positionId: body.positionId,
+      marketId: body.marketId,
+      marketQuestion: body.marketQuestion,
+      outcome: body.outcome,
+      entryPrice: body.entryPrice,
+      currentPrice: body.currentPrice,
+      unrealizedPnl: body.unrealizedPnl,
+      positionSizeUsd: body.positionSizeUsd,
+      strategy: body.strategy,
+      timeHeldSeconds: body.timeHeldSeconds,
+      timestamp: body.timestamp,
+    });
+
+    return jsonResponse({ ok: true });
+  }),
+});
+
+// POST /syncOraclePnl
+http.route({
+  path: "/syncOraclePnl",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    if (!checkAuth(request)) {
+      return jsonResponse({ error: "Unauthorized" }, 401);
+    }
+
+    const body = await request.json();
+    await ctx.runMutation(internal.oracle.syncOraclePnl, {
+      date: body.date,
+      totalRealizedPnl: body.totalRealizedPnl,
+      todaysPnl: body.todaysPnl,
+      unrealizedPnl: body.unrealizedPnl,
+      winRate: body.winRate,
+      roiPercent: body.roiPercent,
+      totalTrades: body.totalTrades,
+      winningTrades: body.winningTrades,
+    });
+
+    return jsonResponse({ ok: true });
+  }),
+});
+
+// POST /syncOracleStrategyPerformance
+http.route({
+  path: "/syncOracleStrategyPerformance",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    if (!checkAuth(request)) {
+      return jsonResponse({ error: "Unauthorized" }, 401);
+    }
+
+    const body = await request.json();
+    await ctx.runMutation(internal.oracle.syncOracleStrategyPerformance, {
+      strategy: body.strategy,
+      totalTrades: body.totalTrades,
+      winningTrades: body.winningTrades,
+      totalPnl: body.totalPnl,
+      winRate: body.winRate,
+      avgPnlPerTrade: body.avgPnlPerTrade,
+    });
+
+    return jsonResponse({ ok: true });
+  }),
+});
+
+// POST /syncOracleActivityLog
+http.route({
+  path: "/syncOracleActivityLog",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    if (!checkAuth(request)) {
+      return jsonResponse({ error: "Unauthorized" }, 401);
+    }
+
+    const body = await request.json();
+    await ctx.runMutation(internal.oracle.syncOracleActivityLog, {
+      turnId: body.turnId,
+      agentId: body.agentId,
+      status: body.status,
+      prompt: body.prompt,
+      toolCalls: body.toolCalls,
+      tokenUsage: body.tokenUsage,
+      durationMs: body.durationMs,
+      timestamp: body.timestamp,
+    });
+
+    return jsonResponse({ ok: true });
+  }),
+});
+
 export default http;
