@@ -77,10 +77,10 @@ export function OracleDashboardClient() {
       </div>
 
       {/* Trade History */}
-      <TradeHistoryTable trades={trades} />
+      <TradeHistoryTable trades={trades ?? []} />
 
       {/* Activity Log */}
-      <ActivityLog activities={activityLog} />
+      <ActivityLog activities={activityLog ?? []} />
     </div>
   );
 }

@@ -96,7 +96,8 @@ export interface StatCardProps {
 }
 
 export interface BadgeProps {
-  variant: "success" | "warning" | "error" | "info" | "neutral";
+  variant?: "success" | "warning" | "error" | "info" | "neutral";
+  className?: string;
   children: React.ReactNode;
   size?: "sm" | "md";
 }
