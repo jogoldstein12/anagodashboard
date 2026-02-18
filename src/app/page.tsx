@@ -80,13 +80,13 @@ export default function MorningBriefing() {
   const totalTokensToday = agents.reduce((sum, a) => sum + (a.tokensToday || 0), 0);
 
   return (
-    <div className="space-y-6 max-w-5xl">
+    <div className="space-y-6 max-w-5xl w-full">
       {/* Greeting */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           {greeting.icon}
-          <div>
-            <h1 className="text-2xl font-semibold text-white">
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-2xl font-semibold text-white truncate">
               {greeting.text}, Josh
             </h1>
             <p className="text-sm text-white/40 mt-0.5">{formatDate()}</p>
@@ -98,8 +98,8 @@ export default function MorningBriefing() {
         </div>
       </div>
 
-      {/* Quick Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {/* Quick Stats - 2 cols on mobile, 4 cols on desktop */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
         <StatCard
           icon={<Users className="w-5 h-5" />}
           label="Active Agents"
@@ -153,7 +153,7 @@ export default function MorningBriefing() {
                       <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${priorityColors[task.priority] || priorityColors.p3}`}>
                         {task.priority.toUpperCase()}
                       </span>
-                      <span className="text-sm text-white/80 flex-1">{task.title}</span>
+                      <span className="text-sm text-white/80 flex-1 truncate">{task.title}</span>
                       <AgentBadge agent={task.agent} />
                       <Badge
                         variant={task.status === "in_progress" ? "info" : "warning"}
@@ -253,7 +253,7 @@ export default function MorningBriefing() {
                     <span className="text-sm text-white/80 flex-1">{agent.name}</span>
                     <StatusDot active={agent.status === "active"} />
                     {agent.currentTask && (
-                      <span className="text-[10px] text-white/30 truncate max-w-[120px]">
+                      <span className="text-[10px] text-white/30 truncate max-w-[80px] sm:max-w-[120px]">
                         {agent.currentTask}
                       </span>
                     )}
@@ -281,7 +281,7 @@ export default function MorningBriefing() {
                     <Badge variant={notif.channel === "telegram" ? "info" : "neutral"} size="sm">
                       {notif.channel}
                     </Badge>
-                    <span className="text-white/60 truncate flex-1">{notif.subject || notif.content.slice(0, 50)}</span>
+                    <span className="text-white/60 truncate flex-1 max-w-[120px] sm:max-w-none">{notif.subject || notif.content.slice(0, 50)}</span>
                   </div>
                   <div className="text-[10px] text-white/20 mt-0.5 pl-[52px]">
                     {relativeTime(notif.timestamp)}

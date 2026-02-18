@@ -1,158 +1,251 @@
+"use client";
+
 import { GlassPanel } from "@/components/GlassPanel";
-import { TrendingUp, Target, BarChart3, Trophy, Zap, Users } from "lucide-react";
+import { Badge } from "@/components/ui/Badge";
+import { TrendingUp, TrendingDown, Target, BarChart, PieChart, DollarSign } from "lucide-react";
+
+interface StrategyPerformance {
+  _id: string;
+  strategy: string;
+  totalTrades: number;
+  winningTrades: number;
+  totalPnl: number;
+  winRate: number;
+  avgPnlPerTrade: number;
+  lastUpdated: number;
+}
 
 interface StrategyPerformanceProps {
-  strategies: any[];
+  strategies: StrategyPerformance[] | null | undefined;
 }
 
 export function StrategyPerformance({ strategies }: StrategyPerformanceProps) {
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(amount);
+  const getStrategyColor = (strategy: string) => {
+    switch (strategy.toLowerCase()) {
+      case "resolution sniping": return "bg-purple-500/20 text-purple-400";
+      case "whale copy-trading": return "bg-blue-500/20 text-blue-400";
+      case "news-driven": return "bg-green-500/20 text-green-400";
+      case "neg-risk arbitrage": return "bg-amber-500/20 text-amber-400";
+      case "market making": return "bg-cyan-500/20 text-cyan-400";
+      default: return "bg-gray-500/20 text-gray-400";
+    }
   };
 
   const getStrategyIcon = (strategy: string) => {
-    switch (strategy?.toLowerCase()) {
-      case "resolution sniping":
-        return <Zap className="w-4 h-4 text-amber-400" />;
-      case "whale copy-trading":
-        return <Users className="w-4 h-4 text-blue-400" />;
-      case "news-driven":
-        return <BarChart3 className="w-4 h-4 text-green-400" />;
-      case "neg-risk arbitrage":
-        return <Target className="w-4 h-4 text-purple-400" />;
-      case "market making":
-        return <TrendingUp className="w-4 h-4 text-emerald-400" />;
-      default:
-        return <Trophy className="w-4 h-4 text-white/50" />;
+    switch (strategy.toLowerCase()) {
+      case "resolution sniping": return "🎯";
+      case "whale copy-trading": return "🐋";
+      case "news-driven": return "📰";
+      case "neg-risk arbitrage": return "⚖️";
+      case "market making": return "🏛️";
+      default: return "📊";
     }
   };
 
-  const getStrategyColor = (strategy: string) => {
-    switch (strategy?.toLowerCase()) {
-      case "resolution sniping":
-        return "bg-amber-500/20 text-amber-400 border-amber-500/30";
-      case "whale copy-trading":
-        return "bg-blue-500/20 text-blue-400 border-blue-500/30";
-      case "news-driven":
-        return "bg-green-500/20 text-green-400 border-green-500/30";
-      case "neg-risk arbitrage":
-        return "bg-purple-500/20 text-purple-400 border-purple-500/30";
-      case "market making":
-        return "bg-emerald-500/20 text-emerald-400 border-emerald-500/30";
-      default:
-        return "bg-gray-500/20 text-gray-400 border-gray-500/30";
-    }
-  };
+  if (!strategies || strategies.length === 0) {
+    return (
+      <GlassPanel className="p-6 h-full">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-lg font-semibold text-white">Strategy Performance</h2>
+            <p className="text-sm text-white/50 mt-1">Performance by trading strategy</p>
+          </div>
+          <Badge variant="neutral" size="sm">0 strategies</Badge>
+        </div>
+        <div className="text-center py-12">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-white/[0.04] rounded-full mb-4">
+            <PieChart className="w-8 h-8 text-white/30" />
+          </div>
+          <h3 className="text-lg font-medium text-white mb-2">No strategy data</h3>
+          <p className="text-sm text-white/50 max-w-sm mx-auto">
+            Strategy performance data will appear here after Oracle executes trades using different strategies.
+          </p>
+        </div>
+      </GlassPanel>
+    );
+  }
 
-  const getPnlColor = (pnl: number) => {
-    return pnl >= 0 ? "text-green-400" : "text-red-400";
-  };
-
-  // Sort strategies by total P&L (descending)
-  const sortedStrategies = [...(strategies || [])].sort((a, b) => b.totalPnl - a.totalPnl);
+  const sortedStrategies = [...strategies].sort((a, b) => b.totalPnl - a.totalPnl);
+  const totalPnl = strategies.reduce((sum, s) => sum + s.totalPnl, 0);
+  const totalTrades = strategies.reduce((sum, s) => sum + s.totalTrades, 0);
+  const bestStrategy = sortedStrategies[0];
+  const worstStrategy = sortedStrategies[sortedStrategies.length - 1];
 
   return (
-    <GlassPanel className="p-6">
+    <GlassPanel className="p-6 h-full">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-semibold text-white">Strategy Performance</h2>
-        <div className="text-sm text-white/50">
-          {sortedStrategies.length} strategies
+        <div>
+          <h2 className="text-lg font-semibold text-white">Strategy Performance</h2>
+          <p className="text-sm text-white/50 mt-1">Performance by trading strategy</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Badge variant={totalPnl >= 0 ? "success" : "error"} size="sm">
+            ${totalPnl.toFixed(2)} total
+          </Badge>
+          <Badge variant="neutral" size="sm">{totalTrades} trades</Badge>
         </div>
       </div>
 
-      {sortedStrategies.length === 0 ? (
-        <div className="text-center py-8 text-white/50">
-          <BarChart3 className="w-12 h-12 mx-auto mb-3 opacity-30" />
-          <p>No strategy performance data</p>
+      {/* Top Performers */}
+      <div className="grid grid-cols-2 gap-3 mb-6">
+        <div className="bg-white/[0.04] rounded-lg p-3">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="p-1.5 bg-green-500/20 rounded">
+              <TrendingUp className="w-3 h-3 text-green-400" />
+            </div>
+            <p className="text-xs text-white/50">Best Strategy</p>
+          </div>
+          {bestStrategy && (
+            <>
+              <p className="text-sm font-medium text-white truncate">{bestStrategy.strategy}</p>
+              <p className="text-lg font-bold text-green-400">${bestStrategy.totalPnl.toFixed(2)}</p>
+            </>
+          )}
         </div>
-      ) : (
-        <div className="space-y-4">
-          {sortedStrategies.map((strategy) => (
-            <div key={strategy.strategy} className="p-4 bg-white/[0.03] rounded-xl border border-white/10">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  {getStrategyIcon(strategy.strategy)}
+        
+        <div className="bg-white/[0.04] rounded-lg p-3">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="p-1.5 bg-red-500/20 rounded">
+              <TrendingDown className="w-3 h-3 text-red-400" />
+            </div>
+            <p className="text-xs text-white/50">Worst Strategy</p>
+          </div>
+          {worstStrategy && worstStrategy.totalPnl < 0 && (
+            <>
+              <p className="text-sm font-medium text-white truncate">{worstStrategy.strategy}</p>
+              <p className="text-lg font-bold text-red-400">${worstStrategy.totalPnl.toFixed(2)}</p>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Strategy List */}
+      <div className="space-y-3">
+        {sortedStrategies.map((strategy) => {
+          const isPositive = strategy.totalPnl > 0;
+          const tradeSuccessRate = strategy.totalTrades > 0 
+            ? (strategy.winningTrades / strategy.totalTrades) * 100 
+            : 0;
+          
+          return (
+            <div key={strategy._id} className="bg-white/[0.04] rounded-lg p-3">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">{getStrategyIcon(strategy.strategy)}</span>
                   <div>
-                    <div className="text-white font-medium">{strategy.strategy}</div>
-                    <div className="text-xs text-white/50">
-                      {strategy.totalTrades} trades • {strategy.winRate?.toFixed(1)}% win rate
+                    <p className="text-sm font-medium text-white">{strategy.strategy}</p>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-white/50">{strategy.totalTrades} trades</span>
+                      <span className="text-xs text-white/30">•</span>
+                      <span className="text-xs text-green-400">{strategy.winningTrades} wins</span>
                     </div>
                   </div>
                 </div>
-                <div className={`px-3 py-1 rounded-full text-sm font-medium border ${getStrategyColor(strategy.strategy)}`}>
-                  {strategy.strategy.split(' ')[0]}
-                </div>
+                <span className={`text-lg font-bold ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
+                  ${strategy.totalPnl.toFixed(2)}
+                </span>
               </div>
-
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-1">
-                  <div className="text-xs text-white/50">Total P&L</div>
-                  <div className={`text-lg font-bold ${getPnlColor(strategy.totalPnl)}`}>
-                    {formatCurrency(strategy.totalPnl)}
-                  </div>
+              
+              {/* Progress Bars */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-white/50">Win Rate</span>
+                  <span className="text-xs font-medium text-white">{strategy.winRate.toFixed(1)}%</span>
                 </div>
-                <div className="space-y-1">
-                  <div className="text-xs text-white/50">Avg P&L/Trade</div>
-                  <div className={`text-lg font-bold ${getPnlColor(strategy.avgPnlPerTrade)}`}>
-                    {formatCurrency(strategy.avgPnlPerTrade)}
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <div className="text-xs text-white/50">Win Rate</div>
-                  <div className="text-lg font-bold text-white">
-                    {strategy.winRate?.toFixed(1)}%
-                  </div>
-                </div>
-              </div>
-
-              {/* Progress bar for win rate */}
-              <div className="mt-3">
-                <div className="flex justify-between text-xs text-white/50 mb-1">
-                  <span>Performance</span>
-                  <span>{strategy.winningTrades}W / {strategy.totalTrades - strategy.winningTrades}L</span>
-                </div>
-                <div className="h-2 bg-white/[0.05] rounded-full overflow-hidden">
+                <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
                   <div 
-                    className="h-full bg-gradient-to-r from-amber-500 to-amber-400 rounded-full"
+                    className="h-full bg-green-500 rounded-full"
                     style={{ width: `${Math.min(100, strategy.winRate)}%` }}
                   />
                 </div>
+                
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-white/50">Avg. P&L per Trade</span>
+                  <span className={`text-xs font-medium ${strategy.avgPnlPerTrade >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                    ${strategy.avgPnlPerTrade.toFixed(2)}
+                  </span>
+                </div>
+                <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                  <div 
+                    className={`h-full rounded-full ${strategy.avgPnlPerTrade >= 0 ? 'bg-green-500' : 'bg-red-500'}`}
+                    style={{ width: `${Math.min(100, Math.abs(strategy.avgPnlPerTrade) * 10)}%` }}
+                  />
+                </div>
+              </div>
+              
+              {/* Strategy Stats */}
+              <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-white/10">
+                <div className="text-center">
+                  <p className="text-xs text-white/50">Success</p>
+                  <p className={`text-sm font-medium ${tradeSuccessRate >= 50 ? 'text-green-400' : 'text-amber-400'}`}>
+                    {tradeSuccessRate.toFixed(0)}%
+                  </p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xs text-white/50">Volume</p>
+                  <p className="text-sm font-medium text-white">
+                    ${(strategy.totalTrades * Math.abs(strategy.avgPnlPerTrade)).toFixed(0)}
+                  </p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xs text-white/50">ROI</p>
+                  <p className={`text-sm font-medium ${strategy.totalPnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                    {strategy.totalTrades > 0 ? (strategy.totalPnl / (strategy.totalTrades * 100) * 100).toFixed(1) : 0}%
+                  </p>
+                </div>
               </div>
             </div>
-          ))}
-        </div>
-      )}
+          );
+        })}
+      </div>
 
-      {/* Summary stats */}
-      {sortedStrategies.length > 0 && (
-        <div className="mt-6 pt-6 border-t border-white/10">
-          <div className="grid grid-cols-3 gap-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-white">
-                {sortedStrategies.reduce((sum, s) => sum + s.totalTrades, 0)}
+      {/* Performance Summary */}
+      <div className="mt-6 pt-6 border-t border-white/10">
+        <h3 className="text-sm font-medium text-white mb-3">Performance Insights</h3>
+        <div className="space-y-2">
+          {bestStrategy && bestStrategy.totalPnl > 0 && (
+            <div className="flex items-center gap-2 text-sm">
+              <div className="p-1 bg-green-500/20 rounded">
+                <TrendingUp className="w-3 h-3 text-green-400" />
               </div>
-              <div className="text-xs text-white/50">Total Trades</div>
+              <span className="text-white/70">
+                <span className="text-green-400 font-medium">{bestStrategy.strategy}</span> is the most profitable strategy
+              </span>
             </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-green-400">
-                {formatCurrency(sortedStrategies.reduce((sum, s) => sum + s.totalPnl, 0))}
+          )}
+          
+          {worstStrategy && worstStrategy.totalPnl < 0 && (
+            <div className="flex items-center gap-2 text-sm">
+              <div className="p-1 bg-red-500/20 rounded">
+                <TrendingDown className="w-3 h-3 text-red-400" />
               </div>
-              <div className="text-xs text-white/50">Combined P&L</div>
+              <span className="text-white/70">
+                <span className="text-red-400 font-medium">{worstStrategy.strategy}</span> needs improvement
+              </span>
             </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-white">
-                {sortedStrategies.length}
+          )}
+          
+          {strategies.some(s => s.winRate >= 70) && (
+            <div className="flex items-center gap-2 text-sm">
+              <div className="p-1 bg-blue-500/20 rounded">
+                <Target className="w-3 h-3 text-blue-400" />
               </div>
-              <div className="text-xs text-white/50">Active Strategies</div>
+              <span className="text-white/70">
+                High win rate strategies ({strategies.filter(s => s.winRate >= 70).length}) show consistent performance
+              </span>
             </div>
+          )}
+          
+          <div className="flex items-center gap-2 text-sm">
+            <div className="p-1 bg-purple-500/20 rounded">
+              <BarChart className="w-3 h-3 text-purple-400" />
+            </div>
+            <span className="text-white/70">
+              Total strategy diversity: <span className="text-purple-400 font-medium">{strategies.length}</span> active strategies
+            </span>
           </div>
         </div>
-      )}
+      </div>
     </GlassPanel>
   );
 }

@@ -1,8 +1,9 @@
 "use client";
 
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, Calendar, Search, Users, Network, ListTodo, DollarSign, Brain, Bell, Settings, Inbox } from "lucide-react";
+import { Activity, Calendar, Search, Users, Network, ListTodo, DollarSign, Brain, Bell, Settings, Inbox, Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AGENTS, type AgentKey, AGENT_EMOJI } from "@/lib/constants";
 import { StatusDot } from "./StatusDot";
@@ -24,11 +25,62 @@ const NAV_ITEMS = [
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
-export function Sidebar() {
-  const pathname = usePathname();
+interface SidebarProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
 
-  return (
-    <GlassPanel className="w-60 flex-shrink-0 flex flex-col h-full p-4 rounded-none rounded-r-2xl">
+export function Sidebar({ isOpen, onClose }: SidebarProps) {
+  const pathname = usePathname();
+  const sidebarRef = useRef<HTMLDivElement>(null);
+
+  // Close sidebar when clicking outside on mobile
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        window.innerWidth < 768 &&
+        isOpen &&
+        sidebarRef.current &&
+        !sidebarRef.current.contains(event.target as Node)
+      ) {
+        onClose();
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isOpen, onClose]);
+
+  // Close sidebar on route change on mobile
+  useEffect(() => {
+    if (window.innerWidth < 768) {
+      onClose();
+    }
+  }, [pathname, onClose]);
+
+  // Prevent body scroll when mobile sidebar is open
+  useEffect(() => {
+    if (window.innerWidth < 768 && isOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isOpen]);
+
+  const sidebarContent = (
+    <>
+      {/* Close button (mobile only) */}
+      <button
+        onClick={onClose}
+        className="md:hidden absolute top-4 right-4 p-2 rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition-colors z-50"
+        aria-label="Close sidebar"
+      >
+        <X className="w-5 h-5" />
+      </button>
+
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-xl font-semibold text-white flex items-center gap-2">
@@ -38,7 +90,7 @@ export function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="space-y-1 mb-8">
+      <nav className="space-y-1 mb-8 overflow-y-auto">
         {NAV_ITEMS.map((item) => {
           const isActive = pathname === item.href;
           return (
@@ -60,7 +112,7 @@ export function Sidebar() {
       </nav>
 
       {/* Agents */}
-      <div>
+      <div className="overflow-y-auto">
         <h2 className="text-xs font-medium text-white/30 uppercase tracking-wider mb-3 px-3">
           Agents
         </h2>
@@ -92,6 +144,53 @@ export function Sidebar() {
           v1.0 · Feb 2026
         </p>
       </div>
-    </GlassPanel>
+    </>
+  );
+
+  return (
+    <>
+      {/* Desktop Sidebar - always visible */}
+      <div className="hidden md:block">
+        <GlassPanel className="w-60 flex-shrink-0 flex flex-col h-full p-4 rounded-none rounded-r-2xl">
+          {sidebarContent}
+        </GlassPanel>
+      </div>
+
+      {/* Mobile Sidebar - overlay */}
+      <>
+        {/* Backdrop */}
+        <div
+          className={cn(
+            "md:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-40 transition-opacity duration-300",
+            isOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+          )}
+          onClick={onClose}
+        />
+        {/* Sidebar */}
+        <div
+          ref={sidebarRef}
+          className={cn(
+            "md:hidden fixed top-0 left-0 h-full w-72 z-50 transition-transform duration-300 ease-out",
+            isOpen ? "translate-x-0" : "-translate-x-full"
+          )}
+        >
+          <GlassPanel className="h-full flex flex-col p-4 rounded-none rounded-r-2xl overflow-y-auto">
+            {sidebarContent}
+          </GlassPanel>
+        </div>
+      </>
+    </>
+  );
+}
+
+export function SidebarToggle({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="md:hidden fixed top-4 left-4 z-30 p-2.5 rounded-xl bg-white/10 backdrop-blur-md border border-white/10 text-white/80 hover:text-white hover:bg-white/15 transition-all"
+      aria-label="Open sidebar"
+    >
+      <Menu className="w-5 h-5" />
+    </button>
   );
 }

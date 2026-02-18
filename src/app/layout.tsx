@@ -1,8 +1,11 @@
+"use client";
+
+import { useState } from "react";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
-import { Sidebar } from "@/components/Sidebar";
+import { Sidebar, SidebarToggle } from "@/components/Sidebar";
 import { CommandPalette } from "@/components/CommandPalette";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -17,6 +20,8 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   return (
     <html lang="en" className="dark">
       <body className={`${inter.className} antialiased`}>
@@ -32,10 +37,13 @@ export default function RootLayout({
           {/* Command Palette */}
           <CommandPalette />
 
+          {/* Mobile Sidebar Toggle */}
+          <SidebarToggle onClick={() => setSidebarOpen(true)} />
+
           {/* App */}
           <div className="relative z-10 flex h-screen overflow-hidden">
-            <Sidebar />
-            <main className="flex-1 overflow-y-auto p-6">
+            <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+            <main className="flex-1 overflow-y-auto p-4 md:p-6 pt-16 md:pt-6 w-full">
               {children}
             </main>
           </div>
