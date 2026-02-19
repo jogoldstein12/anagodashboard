@@ -20,6 +20,7 @@ import type * as scheduledTasks from "../scheduledTasks.js";
 import type * as seed from "../seed.js";
 import type * as sessions from "../sessions.js";
 import type * as sync from "../sync.js";
+import type * as syncRequests from "../syncRequests.js";
 import type * as tasks from "../tasks.js";
 
 import type {
@@ -41,6 +42,7 @@ declare const fullApi: ApiFromModules<{
   seed: typeof seed;
   sessions: typeof sessions;
   sync: typeof sync;
+  syncRequests: typeof syncRequests;
   tasks: typeof tasks;
 }>;
 

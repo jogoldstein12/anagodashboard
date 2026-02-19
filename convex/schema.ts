@@ -204,4 +204,11 @@ export default defineSchema({
   })
     .index("by_date", ["date"])
     .index("by_timestamp", ["timestamp"]),
+
+  // SYNC REQUEST QUEUE (dashboard "Sync Now" button → Mac mini pickup)
+  sync_requests: defineTable({
+    requestedAt: v.number(),
+    fulfilledAt: v.optional(v.number()),
+    status: v.string(), // "pending", "fulfilled", "expired"
+  }).index("by_status", ["status", "requestedAt"]),
 });

@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { Sidebar } from "./Sidebar";
+import { SyncButton } from "./SyncButton";
 import { Menu } from "lucide-react";
 
 export function LayoutShell({ children }: { children: React.ReactNode }) {
@@ -25,7 +26,10 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
 
       <div className="relative z-10 flex h-screen overflow-hidden">
         <Sidebar isOpen={sidebarOpen} onClose={closeSidebar} />
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 pt-16 md:pt-6 w-full">
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 pt-16 md:pt-6 w-full relative">
+          <div className="absolute top-4 right-4 md:top-6 md:right-6 z-20">
+            <SyncButton />
+          </div>
           {children}
         </main>
       </div>

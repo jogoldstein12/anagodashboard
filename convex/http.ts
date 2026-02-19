@@ -19,6 +19,20 @@ function checkAuth(request: Request): boolean {
   return authHeader === `Bearer ${secret}`;
 }
 
+// GET /api/sync/pending — polled by Mac mini sync script
+http.route({
+  path: "/api/sync/pending",
+  method: "GET",
+  handler: httpAction(async (ctx, request) => {
+    if (!checkAuth(request)) {
+      return jsonResponse({ error: "Unauthorized" }, 401);
+    }
+
+    const pending = await ctx.runQuery(internal.syncRequests.getPendingForHttp);
+    return jsonResponse(pending);
+  }),
+});
+
 // POST /api/sync/activity
 http.route({
   path: "/api/sync/activity",
@@ -72,6 +86,9 @@ http.route({
       taskSummary: body.taskSummary,
       parentSessionId: body.parentSessionId,
     });
+
+    // Mark any pending sync requests as fulfilled
+    await ctx.runMutation(internal.syncRequests.fulfillPendingSync);
 
     return jsonResponse({ ok: true });
   }),

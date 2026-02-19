@@ -98,6 +98,19 @@ async function post(path, body) {
   }
 }
 
+async function getAuth(path) {
+  const url = `${SITE_URL}${path}`;
+  try {
+    const res = await fetch(url, {
+      headers: { "Authorization": `Bearer ${SYNC_SECRET}` },
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
 function run(cmd) {
   try {
     return execSync(cmd, { encoding: "utf-8", timeout: 30000 }).trim();
@@ -652,7 +665,15 @@ async function main() {
   console.log(`🚀 Mission Control Sync — ${new Date().toLocaleString()}`);
   console.log(`   Target: ${SITE_URL}`);
   if (DRY_RUN) console.log("   ⚠️  DRY RUN — no data will be sent");
-  
+
+  // Check if this sync was requested from the dashboard
+  const pendingCheck = await getAuth("/api/sync/pending");
+  if (pendingCheck?.pending) {
+    console.log(`   🔔 Dashboard-requested sync (requested at ${new Date(pendingCheck.requestedAt).toLocaleTimeString()})`);
+  } else {
+    console.log("   ⏰ Scheduled sync");
+  }
+
   const state = loadState();
   
   // Get sessions from the sessions JSON file if provided, or try OpenClaw API
