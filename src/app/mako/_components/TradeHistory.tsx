@@ -73,7 +73,7 @@ export function TradeHistory({ trades }: TradeHistoryProps) {
               <th className="text-left py-3 px-2 text-xs font-medium text-white/50">Slug</th>
               <th className="text-left py-3 px-2 text-xs font-medium text-white/50">Direction</th>
               <th className="text-left py-3 px-2 text-xs font-medium text-white/50">Confidence</th>
-              <th className="text-right py-3 px-2 text-xs font-medium text-white/50">Delta</th>
+              <th className="text-right py-3 px-2 text-xs font-medium text-white/50">Return</th>
               <th className="text-right py-3 px-2 text-xs font-medium text-white/50">Price</th>
               <th className="text-left py-3 px-2 text-xs font-medium text-white/50">Outcome</th>
               <th className="text-right py-3 px-2 text-xs font-medium text-white/50">P&L</th>
@@ -122,9 +122,15 @@ export function TradeHistory({ trades }: TradeHistoryProps) {
                     </div>
                   </td>
                   <td className="py-3 px-2 text-right">
-                    <span className={`text-sm ${trade.windowDelta >= 0 ? "text-green-400" : "text-red-400"}`}>
-                      {trade.windowDelta >= 0 ? "+" : ""}{(trade.windowDelta * 100).toFixed(2)}%
-                    </span>
+                    {(() => {
+                      const cost = trade.tokenPrice > 0 ? trade.pnl / ((1 / trade.tokenPrice) - 1) : 0;
+                      const pctReturn = cost > 0 ? (trade.pnl / cost) * 100 : 0;
+                      return (
+                        <span className={`text-sm ${trade.pnl >= 0 ? "text-green-400" : "text-red-400"}`}>
+                          {trade.pnl >= 0 ? "+" : ""}{pctReturn.toFixed(0)}%
+                        </span>
+                      );
+                    })()}
                   </td>
                   <td className="py-3 px-2 text-right">
                     <span className="text-sm text-white/70">

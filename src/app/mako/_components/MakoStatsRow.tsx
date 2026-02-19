@@ -43,6 +43,8 @@ export function MakoStatsRow({ status }: MakoStatsRowProps) {
       : "text-red-400";
 
   const pnlPositive = (s?.totalPnl ?? 0) >= 0;
+  const initialBankroll = 100; // Starting capital
+  const totalReturn = initialBankroll > 0 ? ((s?.totalPnl ?? 0) / initialBankroll) * 100 : 0;
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -91,7 +93,7 @@ export function MakoStatsRow({ status }: MakoStatsRowProps) {
           {pnlPositive ? "+" : ""}${(s?.totalPnl ?? 0).toFixed(2)}
         </p>
         <p className="text-xs text-white/30 mt-1">
-          {s?.totalTrades ?? 0} trades
+          {s?.totalTrades ?? 0} trades · <span className={pnlPositive ? "text-green-400/60" : "text-red-400/60"}>{pnlPositive ? "+" : ""}{totalReturn.toFixed(1)}% return</span>
         </p>
       </GlassPanel>
 
