@@ -70,11 +70,10 @@ export function TradeHistory({ trades }: TradeHistoryProps) {
           <thead>
             <tr className="border-b border-white/10">
               <th className="text-left py-3 px-2 text-xs font-medium text-white/50">Time</th>
-              <th className="text-left py-3 px-2 text-xs font-medium text-white/50">Slug</th>
               <th className="text-left py-3 px-2 text-xs font-medium text-white/50">Direction</th>
               <th className="text-left py-3 px-2 text-xs font-medium text-white/50">Confidence</th>
+              <th className="text-right py-3 px-2 text-xs font-medium text-white/50">Wager</th>
               <th className="text-right py-3 px-2 text-xs font-medium text-white/50">Return</th>
-              <th className="text-right py-3 px-2 text-xs font-medium text-white/50">Price</th>
               <th className="text-left py-3 px-2 text-xs font-medium text-white/50">Outcome</th>
               <th className="text-right py-3 px-2 text-xs font-medium text-white/50">P&L</th>
               <th className="text-right py-3 px-2 text-xs font-medium text-white/50">Bankroll</th>
@@ -90,11 +89,6 @@ export function TradeHistory({ trades }: TradeHistoryProps) {
                 <tr key={trade._id} className="border-b border-white/5 hover:bg-white/[0.02]">
                   <td className="py-3 px-2">
                     <p className="text-sm text-white/90">{formatTime(trade.timestamp)}</p>
-                  </td>
-                  <td className="py-3 px-2">
-                    <p className="text-sm text-white/90 max-w-[140px] truncate" title={trade.slug}>
-                      {trade.slug}
-                    </p>
                   </td>
                   <td className="py-3 px-2">
                     <div className="flex items-center gap-1.5">
@@ -121,22 +115,24 @@ export function TradeHistory({ trades }: TradeHistoryProps) {
                       </span>
                     </div>
                   </td>
-                  <td className="py-3 px-2 text-right">
-                    {(() => {
-                      const cost = trade.tokenPrice > 0 ? trade.pnl / ((1 / trade.tokenPrice) - 1) : 0;
-                      const pctReturn = cost > 0 ? (trade.pnl / cost) * 100 : 0;
-                      return (
-                        <span className={`text-sm ${trade.pnl >= 0 ? "text-green-400" : "text-red-400"}`}>
-                          {trade.pnl >= 0 ? "+" : ""}{pctReturn.toFixed(0)}%
-                        </span>
-                      );
-                    })()}
-                  </td>
-                  <td className="py-3 px-2 text-right">
-                    <span className="text-sm text-white/70">
-                      ${trade.tokenPrice.toFixed(4)}
-                    </span>
-                  </td>
+                  {(() => {
+                    const cost = trade.tokenPrice > 0 ? trade.pnl / ((1 / trade.tokenPrice) - 1) : 0;
+                    const pctReturn = cost > 0 ? (trade.pnl / cost) * 100 : 0;
+                    return (
+                      <>
+                        <td className="py-3 px-2 text-right">
+                          <span className="text-sm text-white/70">
+                            ${Math.abs(cost).toFixed(2)}
+                          </span>
+                        </td>
+                        <td className="py-3 px-2 text-right">
+                          <span className={`text-sm ${trade.pnl >= 0 ? "text-green-400" : "text-red-400"}`}>
+                            {trade.pnl >= 0 ? "+" : ""}{pctReturn.toFixed(0)}%
+                          </span>
+                        </td>
+                      </>
+                    );
+                  })()}
                   <td className="py-3 px-2">
                     {isPending ? (
                       <Badge variant="warning" size="sm">
