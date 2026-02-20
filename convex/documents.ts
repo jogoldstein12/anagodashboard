@@ -79,3 +79,37 @@ export const listByType = query({
       .take(args.limit ?? 100);
   },
 });
+
+export const upsertByFilePath = mutation({
+  args: {
+    type: v.string(),
+    title: v.string(),
+    content: v.string(),
+    agent: v.string(),
+    filePath: v.optional(v.string()),
+    tags: v.array(v.string()),
+    timestamp: v.number(),
+  },
+  handler: async (ctx: MutationCtx, args: { type: string; title: string; content: string; agent: string; filePath?: string; tags: string[]; timestamp: number }) => {
+    // If no filePath provided, just insert a new document
+    if (!args.filePath) {
+      return await ctx.db.insert("documents", args);
+    }
+
+    // Check if document with this filePath already exists
+    const existing = await ctx.db
+      .query("documents")
+      .filter((q: any) => q.eq(q.field("filePath"), args.filePath))
+      .first();
+
+    if (existing) {
+      // Update existing document
+      const { filePath, ...updates } = args;
+      await ctx.db.patch(existing._id, updates);
+      return existing._id;
+    } else {
+      // Insert new document
+      return await ctx.db.insert("documents", args);
+    }
+  },
+});

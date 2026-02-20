@@ -12,7 +12,7 @@
  */
 
 import { execSync } from "child_process";
-import { readFileSync, writeFileSync, existsSync, readdirSync } from "fs";
+import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from "fs";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 
@@ -660,6 +660,100 @@ async function syncMako(state) {
   }
 }
 
+// ─── Sync Memory Files ──────────────────────────────────────
+async function syncMemoryFiles(state) {
+  console.log("\n🧠 Syncing memory files...");
+  
+  const workspaceDir = resolve(process.env.HOME || "~", ".openclaw", "workspace");
+  const memoryDir = resolve(workspaceDir, "memory");
+  
+  // Initialize lastModified tracking in state if not present
+  if (!state.lastModifiedMs) state.lastModifiedMs = {};
+  
+  let syncedCount = 0;
+  let skippedCount = 0;
+  
+  // Helper to check if file needs sync
+  const needsSync = (filePath, mtimeMs) => {
+    const lastSynced = state.lastModifiedMs[filePath] || 0;
+    return mtimeMs > lastSynced;
+  };
+  
+  // Helper to sync a single file
+  const syncFile = async (filePath, title, type, tags) => {
+    try {
+      const fullPath = resolve(workspaceDir, filePath);
+      if (!existsSync(fullPath)) return false;
+      
+      const stats = statSync(fullPath);
+      const mtimeMs = stats.mtimeMs;
+      
+      if (!needsSync(filePath, mtimeMs)) {
+        skippedCount++;
+        return true; // Already synced, count as success
+      }
+      
+      const content = readFileSync(fullPath, "utf-8");
+      
+      const result = await post("/api/sync/document", {
+        type,
+        title,
+        content,
+        agent: "anago",
+        filePath,
+        tags,
+        timestamp: Math.floor(mtimeMs),
+      });
+      
+      if (result) {
+        state.lastModifiedMs[filePath] = mtimeMs;
+        syncedCount++;
+        console.log(`  ✅ ${filePath}`);
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error(`  ❌ ${filePath}: ${err.message}`);
+      return false;
+    }
+  };
+  
+  // 1. Sync MEMORY.md
+  await syncFile("MEMORY.md", "Long-Term Memory (MEMORY.md)", "memory", ["long-term", "memory"]);
+  
+  // 2. Sync TODO.md
+  await syncFile("TODO.md", "TODO & Task Tracker", "document", ["todo", "tasks"]);
+  
+  // 3. Sync ANAGO_IMPROVEMENTS.md
+  await syncFile("memory/ANAGO_IMPROVEMENTS.md", "Anago Self-Assessment", "memory", ["self-assessment", "improvements", "memory"]);
+  
+  // 4. Sync daily notes for last 30 days
+  const today = new Date();
+  for (let i = 0; i < 30; i++) {
+    const date = new Date(today);
+    date.setDate(date.getDate() - i);
+    const dateStr = date.toISOString().split("T")[0]; // YYYY-MM-DD
+    const monthStr = dateStr.slice(0, 7); // YYYY-MM
+    
+    const filePath = `memory/${dateStr}.md`;
+    
+    const success = await syncFile(
+      filePath,
+      `Daily Note — ${dateStr}`,
+      "memory",
+      ["daily-note", monthStr, "memory"]
+    );
+    
+    // Stop at first missing file (going backwards from today)
+    if (!success && i > 5) {
+      // Only stop if we're past the first week (recent files might not exist yet)
+      // Actually, continue to check all 30 days since some days might be missing
+    }
+  }
+  
+  console.log(`  ✅ ${syncedCount} files synced, ${skippedCount} unchanged`);
+}
+
 // ─── Main ───────────────────────────────────────────────────
 async function main() {
   console.log(`🚀 Mission Control Sync — ${new Date().toLocaleString()}`);
@@ -704,6 +798,7 @@ async function main() {
   await syncTasks(state);
   await syncRecentActivity(state);
   await syncMako(state);
+  await syncMemoryFiles(state);
   
   state.lastSync = Date.now();
   saveState(state);

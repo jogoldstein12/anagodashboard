@@ -212,6 +212,30 @@ http.route({
   }),
 });
 
+// POST /api/sync/document
+http.route({
+  path: "/api/sync/document",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    if (!checkAuth(request)) {
+      return jsonResponse({ error: "Unauthorized" }, 401);
+    }
+
+    const body = await request.json();
+    await ctx.runMutation(internal.documents.upsertByFilePath, {
+      type: body.type ?? "document",
+      title: body.title,
+      content: body.content,
+      agent: body.agent ?? "anago",
+      filePath: body.filePath,
+      tags: body.tags ?? [],
+      timestamp: body.timestamp ?? Date.now(),
+    });
+
+    return jsonResponse({ ok: true });
+  }),
+});
+
 // MAKO SYNC ROUTES
 
 // POST /api/sync/mako-status

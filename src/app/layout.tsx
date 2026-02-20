@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
 import { CommandPalette } from "@/components/CommandPalette";
+import { QuickAddTask } from "@/components/QuickAddTask";
 import { LayoutShell } from "@/components/LayoutShell";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -29,6 +30,7 @@ export default function RootLayout({
           </div>
 
           <CommandPalette />
+          <QuickAddTask />
 
           <LayoutShell>{children}</LayoutShell>
         </Providers>

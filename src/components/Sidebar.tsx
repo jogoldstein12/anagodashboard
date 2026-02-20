@@ -139,7 +139,13 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       </div>
 
       {/* Footer */}
-      <div className="mt-auto pt-4 border-t border-white/[0.08]">
+      <div className="mt-auto pt-4 border-t border-white/[0.08] space-y-2">
+        <div className="flex items-center justify-center gap-1.5">
+          <kbd className="text-[10px] text-white/30 bg-white/[0.06] px-1 py-0.5 rounded">⌘</kbd>
+          <kbd className="text-[10px] text-white/30 bg-white/[0.06] px-1 py-0.5 rounded">⇧</kbd>
+          <kbd className="text-[10px] text-white/30 bg-white/[0.06] px-1 py-0.5 rounded">K</kbd>
+          <span className="text-[10px] text-white/30">Add task</span>
+        </div>
         <p className="text-[10px] text-white/20 text-center">
           v1.0 · Feb 2026
         </p>
