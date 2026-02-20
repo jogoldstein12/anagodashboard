@@ -30,6 +30,7 @@ export interface Task {
   priority: string; // "p0" | "p1" | "p2" | "p3"
   status: string; // "backlog" | "up_next" | "in_progress" | "done"
   dueDate?: number;
+  _creationTime: number;
   createdAt: number;
   updatedAt: number;
   completedAt?: number;

@@ -92,9 +92,9 @@ export default function TasksPageClient() {
       }
       // Sort by date: newest first; Done column sorts by completedAt
       if (status === "done") {
-        return (b.completedAt ?? b.updatedAt) - (a.completedAt ?? a.updatedAt);
+        return (b.completedAt ?? b._creationTime) - (a.completedAt ?? a._creationTime);
       }
-      return b.createdAt - a.createdAt;
+      return b._creationTime - a._creationTime;
     });
   }
 
