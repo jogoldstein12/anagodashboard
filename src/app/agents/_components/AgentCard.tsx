@@ -5,7 +5,7 @@ import { GlassPanel } from "@/components/GlassPanel";
 import { AgentBadge } from "@/components/AgentBadge";
 import { StatusDot } from "@/components/StatusDot";
 import { Badge } from "@/components/ui/Badge";
-import { AGENTS, AGENT_EMOJI, type AgentKey } from "@/lib/constants";
+import { getAgentConfig } from "@/lib/constants";
 import { relativeTime } from "@/lib/utils";
 import { Cpu, CheckCircle, Hash, Clock, ListTodo } from "lucide-react";
 import type { Agent } from "@/lib/types";
@@ -21,9 +21,8 @@ export function AgentCard({ agent }: AgentCardProps) {
   const router = useRouter();
   const agentTasks = useQuery(api.tasks.getByAgent, { agent: agent.agentId });
   const openTaskCount = agentTasks ? agentTasks.filter((t) => t.status !== "done").length : 0;
-  const agentKey = agent.agentId as AgentKey;
-  const agentInfo = AGENTS[agentKey];
-  const emoji = AGENT_EMOJI[agentKey] || "🤖";
+  const config = getAgentConfig(agent.agentId);
+  const emoji = config.emoji;
   
   const isActive = agent.status === "active";
   const isIdle = agent.status === "idle";
@@ -46,7 +45,7 @@ export function AgentCard({ agent }: AgentCardProps) {
         "hover:scale-[1.01] hover:bg-white/[0.10]",
         "border-l-4"
       )}
-      style={{ borderLeftColor: agentInfo?.color || "#6b7280" }}
+      style={{ borderLeftColor: config.color }}
       onClick={handleClick}
     >
       <div className="space-y-4">

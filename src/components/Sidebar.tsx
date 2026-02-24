@@ -3,9 +3,11 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, Calendar, Search, Users, Network, ListTodo, DollarSign, Brain, Bell, Settings, Inbox, Menu, X } from "lucide-react";
+import { useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
+import { Activity, Calendar, Search, Users, Network, ListTodo, DollarSign, Brain, Bell, Settings, Inbox, Menu, X, TrendingUp, ClipboardList } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { AGENTS, type AgentKey, AGENT_EMOJI } from "@/lib/constants";
+import { getAgentConfig } from "@/lib/constants";
 import { StatusDot } from "./StatusDot";
 import { GlassPanel } from "./GlassPanel";
 
@@ -14,9 +16,11 @@ const NAV_ITEMS = [
   { href: "/activity", label: "Activity Feed", icon: Activity },
   { href: "/agents", label: "Agents", icon: Users },
   { href: "/mako", label: "Mako", icon: DollarSign },
+  { href: "/uni", label: "Uni", icon: TrendingUp },
   { href: "/swarm", label: "Swarm", icon: Network },
   { href: "/calendar", label: "Calendar", icon: Calendar },
   { href: "/tasks", label: "Tasks", icon: ListTodo },
+  { href: "/todos", label: "Todos", icon: ClipboardList },
   { href: "/costs", label: "Costs", icon: DollarSign },
   { href: "/memory", label: "Memory", icon: Brain },
   { href: "/inbox", label: "Inbox", icon: Inbox },
@@ -33,6 +37,7 @@ interface SidebarProps {
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
   const sidebarRef = useRef<HTMLDivElement>(null);
+  const agents = useQuery(api.agents.list);
 
   // Close sidebar when clicking outside on mobile
   useEffect(() => {
@@ -117,24 +122,27 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           Agents
         </h2>
         <div className="space-y-1">
-          {(Object.keys(AGENTS) as AgentKey[]).map((key) => (
-            <Link
-              key={key}
-              href={`/agents/${key}`}
-              className={cn(
-                "flex items-center justify-between px-3 py-2 rounded-xl text-sm transition-all duration-200",
-                pathname === `/agents/${key}`
-                  ? "bg-white/[0.12] text-white"
-                  : "text-white/60 hover:text-white/80 hover:bg-white/[0.05]"
-              )}
-            >
-              <span className="flex items-center gap-2">
-                <span className="text-xs">{AGENT_EMOJI[key]}</span>
-                {AGENTS[key].label}
-              </span>
-              <StatusDot active={key === "anago" || key === "iq"} />
-            </Link>
-          ))}
+          {agents?.map((agent) => {
+            const config = getAgentConfig(agent.agentId);
+            return (
+              <Link
+                key={agent.agentId}
+                href={`/agents/${agent.agentId}`}
+                className={cn(
+                  "flex items-center justify-between px-3 py-2 rounded-xl text-sm transition-all duration-200",
+                  pathname === `/agents/${agent.agentId}`
+                    ? "bg-white/[0.12] text-white"
+                    : "text-white/60 hover:text-white/80 hover:bg-white/[0.05]"
+                )}
+              >
+                <span className="flex items-center gap-2">
+                  <span className="text-xs">{config.emoji}</span>
+                  {agent.name}
+                </span>
+                <StatusDot active={agent.status === "active"} />
+              </Link>
+            );
+          })}
         </div>
       </div>
 

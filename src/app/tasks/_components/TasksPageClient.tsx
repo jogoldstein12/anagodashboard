@@ -10,7 +10,6 @@ import { TaskColumn } from "./TaskColumn";
 import { TaskModal } from "./TaskModal";
 import { ListTodo, PlayCircle, CheckCircle2, AlertCircle, ArrowUpDown } from "lucide-react";
 import { useState } from "react";
-import { AGENTS, type AgentKey } from "@/lib/constants";
 import type { Task } from "@/lib/types";
 
 const STATUSES = ["backlog", "up_next", "in_progress", "done"] as const;
@@ -18,6 +17,7 @@ const PRIORITIES = ["all", "p0", "p1", "p2", "p3"] as const;
 
 export default function TasksPageClient() {
   const allTasks = useQuery(api.tasks.list, {});
+  const agents = useQuery(api.agents.list);
   const [agentFilter, setAgentFilter] = useState<string>("all");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<"date" | "priority">("date");
@@ -110,8 +110,6 @@ export default function TasksPageClient() {
     (t) => t.dueDate && t.dueDate < Date.now() && t.status !== "done"
   ).length;
 
-  const agentKeys = Object.keys(AGENTS) as AgentKey[];
-
   return (
     <div className="space-y-6">
       <PageHeader title="Tasks" description="Kanban board for all agent tasks" action={{ label: "New Task", onClick: handleNewTask }} />
@@ -132,8 +130,8 @@ export default function TasksPageClient() {
           className="bg-white/[0.06] border border-white/[0.12] rounded-lg px-3 py-2 text-sm text-white/80 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
         >
           <option value="all">All Agents</option>
-          {agentKeys.map((key) => (
-            <option key={key} value={key}>{AGENTS[key].label}</option>
+          {agents?.map((a) => (
+            <option key={a.agentId} value={a.agentId}>{a.name} {a.emoji}</option>
           ))}
         </select>
 

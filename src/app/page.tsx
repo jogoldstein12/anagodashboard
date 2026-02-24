@@ -9,7 +9,7 @@ import { AgentBadge } from "@/components/AgentBadge";
 import { StatusDot } from "@/components/StatusDot";
 import { EnhancedActivityCard } from "@/components/EnhancedActivityCard";
 import { relativeTime } from "@/lib/utils";
-import { AGENTS, AGENT_EMOJI, type AgentKey } from "@/lib/constants";
+import { getAgentConfig } from "@/lib/constants";
 import {
   Sun,
   Moon,
@@ -25,6 +25,7 @@ import {
   ArrowRight,
   Zap,
   Bell,
+  TrendingUp,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -50,6 +51,8 @@ export default function MorningBriefing() {
   const allTasks = useQuery(api.tasks.list, {}) || [];
   const scheduledTasks = useQuery(api.scheduledTasks.list, {}) || [];
   const notifications = useQuery(api.notifications.list, { limit: 5 }) || [];
+  const makoStatus = useQuery(api.mako.getMakoStatus);
+  const uniStatus = useQuery(api.uni.getUniStatus);
 
   const greeting = getGreeting();
   const activeAgents = agents.filter((a) => a.status === "active");
@@ -228,6 +231,57 @@ export default function MorningBriefing() {
             </div>
           </GlassPanel>
 
+          {/* Trading Systems */}
+          <GlassPanel className="p-5">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-amber-400" />
+                <h2 className="text-sm font-medium text-white">Trading Systems</h2>
+              </div>
+            </div>
+            <div className="space-y-3">
+              {/* Mako */}
+              <Link
+                href="/mako"
+                className="flex items-center gap-3 hover:bg-white/[0.04] rounded-lg px-2 py-2 -mx-2 transition-colors"
+              >
+                <span className="text-sm">🦈</span>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-white/80">Mako</span>
+                    <span className={`w-2 h-2 rounded-full ${makoStatus?.status === 'active' ? 'bg-green-500 animate-pulse' : 'bg-gray-500'}`} />
+                  </div>
+                  <p className="text-[10px] text-white/40">
+                    {makoStatus?.totalTrades ? `${makoStatus.totalTrades} trades · ${makoStatus.winRate.toFixed(0)}% win` : 'Polymarket scalper'}
+                  </p>
+                </div>
+                <span className="text-xs text-white/50">
+                  ${(makoStatus?.bankroll ?? 0).toFixed(0)}
+                </span>
+              </Link>
+
+              {/* Uni */}
+              <Link
+                href="/uni"
+                className="flex items-center gap-3 hover:bg-white/[0.04] rounded-lg px-2 py-2 -mx-2 transition-colors"
+              >
+                <span className="text-sm">🪸</span>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-white/80">Uni</span>
+                    <span className={`w-2 h-2 rounded-full ${uniStatus?.status === 'active' ? 'bg-green-500 animate-pulse' : 'bg-cyan-500'}`} />
+                  </div>
+                  <p className="text-[10px] text-white/40">
+                    {uniStatus?.totalTrades ? `${uniStatus.totalTrades} trades · ${uniStatus.winRate.toFixed(0)}% win` : 'Kalshi CPI trader'}
+                  </p>
+                </div>
+                <span className="text-xs text-white/50">
+                  ${(uniStatus?.kalshiBalance ?? 518.76).toFixed(0)}
+                </span>
+              </Link>
+            </div>
+          </GlassPanel>
+
           {/* Agent Status */}
           <GlassPanel className="p-5">
             <div className="flex items-center justify-between mb-4">
@@ -241,15 +295,14 @@ export default function MorningBriefing() {
             </div>
             <div className="space-y-3">
               {agents.map((agent) => {
-                const agentKey = agent.agentId as AgentKey;
-                const emoji = AGENT_EMOJI[agentKey] || "🤖";
+                const config = getAgentConfig(agent.agentId);
                 return (
                   <Link
                     key={agent._id}
                     href={`/agents/${agent.agentId}`}
                     className="flex items-center gap-3 hover:bg-white/[0.04] rounded-lg px-2 py-1.5 -mx-2 transition-colors"
                   >
-                    <span className="text-sm">{emoji}</span>
+                    <span className="text-sm">{config.emoji}</span>
                     <span className="text-sm text-white/80 flex-1">{agent.name}</span>
                     <StatusDot active={agent.status === "active"} />
                     {agent.currentTask && (

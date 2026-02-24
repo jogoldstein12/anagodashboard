@@ -22,6 +22,7 @@ import type * as sessions from "../sessions.js";
 import type * as sync from "../sync.js";
 import type * as syncRequests from "../syncRequests.js";
 import type * as tasks from "../tasks.js";
+import type * as uni from "../uni.js";
 
 import type {
   ApiFromModules,
@@ -44,6 +45,7 @@ declare const fullApi: ApiFromModules<{
   sync: typeof sync;
   syncRequests: typeof syncRequests;
   tasks: typeof tasks;
+  uni: typeof uni;
 }>;
 
 /**

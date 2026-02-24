@@ -317,4 +317,86 @@ http.route({
   }),
 });
 
+// UNI SYNC ROUTES
+
+// POST /api/sync/uni-status
+http.route({
+  path: "/api/sync/uni-status",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    if (!checkAuth(request)) {
+      return jsonResponse({ error: "Unauthorized" }, 401);
+    }
+
+    const body = await request.json();
+    await ctx.runMutation(internal.uni.syncUniStatus, {
+      ticker: body.ticker,
+      releaseDate: body.releaseDate,
+      status: body.status,
+      tradeDirection: body.tradeDirection,
+      entryPrice: body.entryPrice,
+      betSize: body.betSize,
+      multiplier: body.multiplier,
+      kalshiBalance: body.kalshiBalance,
+      winRate: body.winRate,
+      totalTrades: body.totalTrades,
+      totalPnl: body.totalPnl,
+      regime: body.regime,
+      signalSummary: body.signalSummary,
+    });
+
+    return jsonResponse({ ok: true });
+  }),
+});
+
+// POST /api/sync/uni-trade
+http.route({
+  path: "/api/sync/uni-trade",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    if (!checkAuth(request)) {
+      return jsonResponse({ error: "Unauthorized" }, 401);
+    }
+
+    const body = await request.json();
+    await ctx.runMutation(internal.uni.syncUniTrade, {
+      tradeId: body.tradeId,
+      releaseDate: body.releaseDate,
+      ticker: body.ticker,
+      entryType: body.entryType,
+      entryPrice: body.entryPrice,
+      betSize: body.betSize,
+      contracts: body.contracts,
+      outcome: body.outcome,
+      pnl: body.pnl,
+      actualCpi: body.actualCpi,
+      regime: body.regime,
+      executedAt: body.executedAt,
+      resolvedAt: body.resolvedAt,
+    });
+
+    return jsonResponse({ ok: true });
+  }),
+});
+
+// POST /api/sync/fulfill-sync-request — called at end of every sync run
+http.route({
+  path: "/api/sync/fulfill-sync-request",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    await ctx.runMutation(internal.syncRequests.fulfillPendingSync);
+    return jsonResponse({ ok: true });
+  }),
+});
+
+// GET /api/check-pending-sync — lightweight poll for "Sync Now" button watcher
+http.route({
+  path: "/api/check-pending-sync",
+  method: "GET",
+  handler: httpAction(async (ctx, request) => {
+    const result = await ctx.runQuery(internal.syncRequests.getPendingForHttp);
+    return jsonResponse({ pending: result.pending, requestedAt: result.requestedAt });
+  }),
+});
+
 export default http;

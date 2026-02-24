@@ -211,4 +211,41 @@ export default defineSchema({
     fulfilledAt: v.optional(v.number()),
     status: v.string(), // "pending", "fulfilled", "expired"
   }).index("by_status", ["status", "requestedAt"]),
+
+  // UNI KALSHI TRADING TABLES
+  uni_status: defineTable({
+    ticker: v.optional(v.string()),         // e.g. "KXCPIYOY-26MAR-T2.5"
+    releaseDate: v.optional(v.string()),    // "2026-03-11"
+    status: v.string(),                     // "idle" | "pending" | "approved" | "executed"
+    tradeDirection: v.optional(v.string()), // "YES" | "NO"
+    entryPrice: v.optional(v.number()),     // cents
+    betSize: v.optional(v.number()),        // dollars
+    multiplier: v.optional(v.number()),
+    kalshiBalance: v.number(),
+    winRate: v.number(),
+    totalTrades: v.number(),
+    totalPnl: v.number(),
+    lastUpdated: v.number(),
+    regime: v.optional(v.string()),         // "HOT" | "FLAT" | "COOL"
+    signalSummary: v.optional(v.string()),
+  })
+    .index("by_lastUpdated", ["lastUpdated"]),
+
+  uni_trades: defineTable({
+    tradeId: v.string(),
+    releaseDate: v.string(),
+    ticker: v.string(),
+    entryType: v.string(),        // "T-14" | "T-1"
+    entryPrice: v.number(),
+    betSize: v.number(),
+    contracts: v.number(),
+    outcome: v.string(),          // "pending" | "win" | "loss"
+    pnl: v.optional(v.number()),
+    actualCpi: v.optional(v.number()),
+    regime: v.optional(v.string()),
+    executedAt: v.number(),
+    resolvedAt: v.optional(v.number()),
+  })
+    .index("by_releaseDate", ["releaseDate"])
+    .index("by_tradeId", ["tradeId"]),
 });

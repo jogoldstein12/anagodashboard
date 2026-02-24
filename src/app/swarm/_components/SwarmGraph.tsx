@@ -1,7 +1,7 @@
 "use client";
 
 import { Agent } from "@/lib/types";
-import { AGENTS, AGENT_EMOJI, type AgentKey } from "@/lib/constants";
+import { getAgentConfig } from "@/lib/constants";
 import SwarmNode from "./SwarmNode";
 import SwarmEdge from "./SwarmEdge";
 import { useState } from "react";
@@ -99,8 +99,8 @@ export default function SwarmGraph({ agents }: SwarmGraphProps) {
             
             if (!anagoPos || !agentPos) return null;
             
-            const agentKey = agent.agentId as AgentKey;
-            const color = AGENTS[agentKey]?.color || "#ffffff";
+            const config = getAgentConfig(agent.agentId);
+            const color = config.color;
             
             return (
               <SwarmEdge
@@ -120,9 +120,9 @@ export default function SwarmGraph({ agents }: SwarmGraphProps) {
             const pos = nodePositions[agent._id];
             if (!pos) return null;
             
-            const agentKey = agent.agentId as AgentKey;
-            const color = AGENTS[agentKey]?.color || "#ffffff";
-            const emoji = AGENT_EMOJI[agentKey] || "🤖";
+            const config = getAgentConfig(agent.agentId);
+            const color = config.color;
+            const emoji = config.emoji;
             const isCenter = agent.agentId === "anago";
             
             return (
@@ -150,8 +150,8 @@ export default function SwarmGraph({ agents }: SwarmGraphProps) {
           const agent = agents.find(a => a._id === hoveredNode);
           if (!agent) return null;
           
-          const agentKey = agent.agentId as AgentKey;
-          const color = AGENTS[agentKey]?.color || "#ffffff";
+          const config = getAgentConfig(agent.agentId);
+          const color = config.color;
           const pos = nodePositions[hoveredNode];
           
           if (!pos) return null;

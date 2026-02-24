@@ -286,7 +286,7 @@ async function syncAgents(sessions) {
           status = "active";
           // Check log recency (correct path)
           try {
-            const logPath = "/Users/anago/.openclaw/workspace/projects/polymarket/trading/logs/scalper.log";
+            const logPath = "/Users/anago/.openclaw/workspace/projects/polymarket/trading/logs/scalper_stdout.log";
             const logStat = run(`stat -f '%m' ${logPath} 2>/dev/null || true`).trim();
             if (logStat) {
               const logAge = Date.now() - parseInt(logStat) * 1000;
@@ -415,6 +415,102 @@ async function syncSessions(sessions, state) {
   console.log(`  💰 Actual total cost across sessions: $${totalActualCost.toFixed(2)}`);
 }
 
+// ─── Infer agent from task content ──────────────────────
+function inferAgentFromContent(content, file = "") {
+  const lower = (content + " " + file).toLowerCase();
+  if (lower.includes("mako") || lower.includes("polymarket") || lower.includes("scalper")) return "mako";
+  if (lower.includes("uni") || lower.includes("kalshi") || lower.includes("cpi")) return "uni";
+  if (lower.includes("iq") || lower.includes("instantiq")) return "iq";
+  if (lower.includes("courtside") || lower.includes("lovb")) return "courtside";
+  if (lower.includes("afterdark") || lower.includes("party") || lower.includes("after dark")) return "afterdark";
+  if (lower.includes("greensea") || lower.includes("green sea") || lower.includes("invoice") || lower.includes("capex")) return "greensea";
+  return "anago";
+}
+
+// ─── Parse TODO.md ─────────────────────────────────────
+async function syncTodoMd(workspaceDir, state) {
+  const todoPath = resolve(workspaceDir, "TODO.md");
+  if (!existsSync(todoPath)) {
+    console.log("  ℹ️  No TODO.md found");
+    return 0;
+  }
+
+  const content = readFileSync(todoPath, "utf-8");
+  const lines = content.split("\n");
+  let count = 0;
+  let currentTier = "";
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    
+    // Detect tier headers
+    if (line.startsWith("## 🔴")) currentTier = "p0";
+    else if (line.startsWith("## 🟡")) currentTier = "p1";
+    else if (line.startsWith("## 🟠")) currentTier = "p2";
+    else if (line.startsWith("## 🟢")) currentTier = "p3";
+    
+    // Parse task headers: ### N. [emoji] Title
+    const taskMatch = line.match(/^###\s+\d+\.\s*([⬜✅🔄❌])\s*(.+)$/);
+    if (taskMatch) {
+      const statusEmoji = taskMatch[1];
+      const title = taskMatch[2].trim();
+      
+      // Parse status
+      let status = "up_next";
+      if (statusEmoji === "✅") status = "done";
+      else if (statusEmoji === "🔄") status = "in_progress";
+      else if (statusEmoji === "❌") status = "done"; // skipped = done for tracking
+      
+      // Read description (next 2-3 lines)
+      let description = "";
+      for (let j = i + 1; j < Math.min(i + 4, lines.length); j++) {
+        const descLine = lines[j].trim();
+        if (descLine && !descLine.startsWith("###") && !descLine.startsWith("##")) {
+          description += descLine + " ";
+        }
+      }
+      description = description.trim().substring(0, 500);
+      
+      // Infer agent from content
+      const fullContent = title + " " + description;
+      const agent = inferAgentFromContent(fullContent);
+      
+      // Priority from tier, fallback to content
+      let priority = currentTier || "p2";
+      if (fullContent.match(/\bp0\b|urgent|critical/i)) priority = "p0";
+      else if (fullContent.match(/\bp1\b|high priority/i)) priority = "p1";
+      else if (fullContent.match(/\bp3\b|low priority/i)) priority = "p3";
+      
+      // Generate stable taskId
+      const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "_").slice(0, 50);
+      const taskId = `todo_${slug}`;
+      
+      // Parse due date if mentioned
+      let dueDate = null;
+      const dateMatch = fullContent.match(/(\d{4}-\d{2}-\d{2})/);
+      if (dateMatch) dueDate = new Date(dateMatch[1]).getTime();
+      
+      await post("/api/sync/task", {
+        taskId,
+        title,
+        description,
+        agent,
+        priority,
+        status,
+        dueDate,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        completedAt: status === "done" ? Date.now() : null,
+      });
+      
+      count++;
+    }
+  }
+  
+  console.log(`  ✅ ${count} tasks from TODO.md synced`);
+  return count;
+}
+
 // ─── Sync Tasks from Workspace ─────────────────────────
 async function syncTasks(state) {
   console.log("\n📝 Syncing tasks from workspace...");
@@ -422,9 +518,14 @@ async function syncTasks(state) {
   const workspaceDir = resolve(ROOT, "..", "..", ".openclaw", "workspace");
   const tasksDir = resolve(workspaceDir, "tasks");
   
+  let totalCount = 0;
+  
+  // Sync TODO.md first
+  totalCount += await syncTodoMd(workspaceDir, state);
+  
+  // Sync tasks/*.md files
   try {
     const files = readdirSync(tasksDir).filter(f => f.endsWith(".md"));
-    let count = 0;
     
     for (const file of files) {
       const filePath = resolve(tasksDir, file);
@@ -485,11 +586,7 @@ async function syncTasks(state) {
       else if (file.includes("p3") || content.match(/low priority|p3/i)) priority = "p3";
       
       // Infer agent
-      if (file.includes("iq") || content.match(/\biq\b|instantiq|instant.?iq/i)) agent = "iq";
-      else if (file.includes("green-sea") || file.includes("greensea") || content.match(/green.?sea|capex|invoice|expense.?track/i)) agent = "greensea";
-      else if (file.includes("oracle") || file.includes("mako") || file.includes("polymarket") || content.match(/oracle|mako|polymarket|trading/i)) agent = "mako";
-      else if (file.includes("courtside") || content.match(/courtside|lovb/i)) agent = "courtside";
-      else if (file.includes("afterdark") || content.match(/after.?dark|party.?game/i)) agent = "afterdark";
+      agent = inferAgentFromContent(content, file);
       
       await post("/api/sync/task", {
         taskId,
@@ -504,10 +601,10 @@ async function syncTasks(state) {
         completedAt,
       });
       
-      count++;
+      totalCount++;
     }
     
-    console.log(`  ✅ ${count} tasks synced`);
+    console.log(`  ✅ ${totalCount} total tasks synced (TODO.md + tasks/)`);
   } catch (err) {
     console.log(`  ⚠️  Error syncing tasks: ${err.message}`);
   }
@@ -646,7 +743,7 @@ async function syncMako(state) {
   } else {
     // Check log recency as fallback
     try {
-      const logStat = run("stat -f '%m' ~/mako_trading/scalper.log 2>/dev/null || true")?.trim();
+      const logStat = run("stat -f '%m' /Users/anago/.openclaw/workspace/projects/polymarket/trading/logs/scalper_stdout.log 2>/dev/null || true")?.trim();
       if (logStat) {
         const logAge = Date.now() - parseInt(logStat) * 1000;
         if (logAge < 300000) makoStatus = "idle";
@@ -720,6 +817,145 @@ async function syncMako(state) {
       });
     }
     console.log(`  ✅ ${dailyData.length} daily PnL records synced`);
+  }
+}
+
+// ─── Sync Uni Kalshi Trading ─────────────────────────────
+async function syncUni(state) {
+  console.log("\n🪸 Syncing Uni Kalshi trading...");
+
+  const uniDir = resolve(process.env.HOME, ".openclaw/workspace/agents/uni/phase1");
+  
+  // Default values
+  let kalshiBalance = 518.76;
+  let winRate = 0;
+  let totalTrades = 0;
+  let totalPnl = 0;
+  let nextReleaseDate = null;
+  let regime = null;
+  let pendingTrade = null;
+  let status = "idle";
+
+  // Read calibration_db.json for balance and stats
+  const calibrationPath = resolve(uniDir, "calibration_db.json");
+  if (existsSync(calibrationPath)) {
+    try {
+      const calibration = JSON.parse(readFileSync(calibrationPath, "utf-8"));
+      kalshiBalance = calibration.balance || calibration.kalshi_balance || kalshiBalance;
+      winRate = calibration.win_rate || calibration.winRate || 0;
+      totalTrades = calibration.total_trades || calibration.totalTrades || 0;
+      totalPnl = calibration.total_pnl || calibration.totalPnl || 0;
+      nextReleaseDate = calibration.next_release_date || calibration.nextReleaseDate || null;
+      regime = calibration.regime || null;
+    } catch (err) {
+      console.log(`  ⚠️  Error reading calibration_db.json: ${err.message}`);
+    }
+  }
+
+  // Read trade_log.csv for additional stats if calibration not present
+  const tradeLogPath = resolve(uniDir, "trade_log.csv");
+  if (existsSync(tradeLogPath)) {
+    try {
+      const csvContent = readFileSync(tradeLogPath, "utf-8");
+      const lines = csvContent.trim().split("\n").slice(1); // Skip header
+      
+      if (totalTrades === 0) totalTrades = lines.length;
+      
+      // Calculate wins and PnL from CSV
+      let wins = 0;
+      let pnlSum = 0;
+      for (const line of lines) {
+        const cols = line.split(",");
+        if (cols.length > 5) {
+          const outcome = cols[5]?.toLowerCase();
+          const pnl = parseFloat(cols[6]) || 0;
+          if (outcome === "win") wins++;
+          pnlSum += pnl;
+        }
+      }
+      
+      if (totalTrades > 0) winRate = (wins / totalTrades) * 100;
+      if (totalPnl === 0) totalPnl = pnlSum;
+    } catch (err) {
+      console.log(`  ⚠️  Error reading trade_log.csv: ${err.message}`);
+    }
+  }
+
+  // Read pending_trade.json for active trade info
+  const pendingPath = resolve(uniDir, "pending_trade.json");
+  if (existsSync(pendingPath)) {
+    try {
+      pendingTrade = JSON.parse(readFileSync(pendingPath, "utf-8"));
+      if (pendingTrade.status === "pending" || pendingTrade.status === "approved") {
+        status = "active";
+      }
+    } catch (err) {
+      console.log(`  ⚠️  Error reading pending_trade.json: ${err.message}`);
+    }
+  }
+
+  // Sync status to Convex
+  await post("/api/sync/uni-status", {
+    status,
+    ticker: pendingTrade?.ticker || null,
+    releaseDate: pendingTrade?.release_date || nextReleaseDate,
+    tradeDirection: pendingTrade?.direction || null,
+    entryPrice: pendingTrade?.entry_price || null,
+    betSize: pendingTrade?.bet_size || null,
+    multiplier: pendingTrade?.multiplier || null,
+    kalshiBalance,
+    winRate,
+    totalTrades,
+    totalPnl,
+    regime,
+    signalSummary: pendingTrade?.signal_summary || null,
+  });
+
+  console.log(`  ✅ Uni status synced: ${status}, $${kalshiBalance.toFixed(2)} balance, ${totalTrades} trades`);
+
+  // Sync individual trades from CSV
+  if (existsSync(tradeLogPath)) {
+    try {
+      const csvContent = readFileSync(tradeLogPath, "utf-8");
+      const lines = csvContent.trim().split("\n").slice(1);
+      let syncedTrades = 0;
+
+      for (const line of lines) {
+        const cols = line.split(",");
+        if (cols.length >= 7) {
+          const tradeId = cols[0]?.trim();
+          const releaseDate = cols[1]?.trim();
+          const ticker = cols[2]?.trim();
+          const entryType = cols[3]?.trim();
+          const entryPrice = parseFloat(cols[4]) || 0;
+          const betSize = parseFloat(cols[5]) || 0;
+          const outcome = cols[6]?.trim().toLowerCase() || "pending";
+          const pnl = parseFloat(cols[7]) || 0;
+          const contracts = Math.round((betSize / entryPrice) * 100) || 0;
+
+          if (tradeId && releaseDate) {
+            await post("/api/sync/uni-trade", {
+              tradeId,
+              releaseDate,
+              ticker,
+              entryType: entryType === "T14" ? "T-14" : (entryType === "T1" ? "T-1" : entryType),
+              entryPrice,
+              betSize,
+              contracts,
+              outcome: outcome === "win" ? "win" : (outcome === "loss" ? "loss" : "pending"),
+              pnl: outcome !== "pending" ? pnl : null,
+              regime: null,
+              executedAt: Date.now(),
+            });
+            syncedTrades++;
+          }
+        }
+      }
+
+      console.log(`  ✅ ${syncedTrades} Uni trades synced`);
+    } catch (err) {
+      console.log(`  ⚠️  Error syncing Uni trades: ${err.message}`);
+    }
   }
 }
 
@@ -861,11 +1097,17 @@ async function main() {
   await syncTasks(state);
   await syncRecentActivity(state);
   await syncMako(state);
+  await syncUni(state);
   await syncMemoryFiles(state);
   
   state.lastSync = Date.now();
   saveState(state);
-  
+
+  // Fulfill any pending "Sync Now" button requests
+  try {
+    await post("/api/sync/fulfill-sync-request", {});
+  } catch {}
+
   console.log("\n✅ Sync complete!");
 }
 
