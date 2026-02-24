@@ -64,6 +64,12 @@ export const syncAgentStatus = internalMutation({
     costToday: v.optional(v.number()),
     costWeek: v.optional(v.number()),
     costMonth: v.optional(v.number()),
+    // Optional metadata for upsert (used when creating new agent record)
+    name: v.optional(v.string()),
+    emoji: v.optional(v.string()),
+    model: v.optional(v.string()),
+    trustLevel: v.optional(v.string()),
+    color: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const agent = await ctx.db
@@ -71,15 +77,41 @@ export const syncAgentStatus = internalMutation({
       .withIndex("by_agentId", (q) => q.eq("agentId", args.agentId))
       .first();
 
-    if (!agent) {
-      return null;
-    }
-
-    const { agentId, ...updates } = args;
+    const { agentId, name, emoji, model, trustLevel, color, ...updates } = args;
     const clean = Object.fromEntries(
       Object.entries(updates).filter(([, v]) => v !== undefined)
     );
-    await ctx.db.patch(agent._id, clean);
+
+    if (!agent) {
+      // Create the agent record if it doesn't exist yet
+      return await ctx.db.insert("agents", {
+        agentId,
+        name: name || agentId,
+        emoji: emoji || "🤖",
+        model: model || "unknown",
+        trustLevel: trustLevel || "L1",
+        status: updates.status || "idle",
+        color: color || "#6b7280",
+        currentTask: updates.currentTask,
+        tokensToday: updates.tokensToday || 0,
+        tasksToday: updates.tasksToday || 0,
+        tasksTotal: 0,
+        lastActive: updates.lastActive || Date.now(),
+        costToday: updates.costToday,
+        costWeek: updates.costWeek,
+        costMonth: updates.costMonth,
+      });
+    }
+
+    // Patch metadata fields too if provided (keeps model/emoji in sync)
+    const metaUpdates: any = {};
+    if (name) metaUpdates.name = name;
+    if (emoji) metaUpdates.emoji = emoji;
+    if (model) metaUpdates.model = model;
+    if (trustLevel) metaUpdates.trustLevel = trustLevel;
+    if (color) metaUpdates.color = color;
+
+    await ctx.db.patch(agent._id, { ...clean, ...metaUpdates });
     return agent._id;
   },
 });

@@ -6,3 +6,146 @@
 [Tue Feb 24 01:41:31 EST 2026] No pending sync request.
 [Tue Feb 24 01:42:01 EST 2026] No pending sync request.
 [Tue Feb 24 01:42:32 EST 2026] No pending sync request.
+[Tue Feb 24 01:43:02 EST 2026] No pending sync request.
+[Tue Feb 24 01:43:32 EST 2026] No pending sync request.
+[Tue Feb 24 01:44:02 EST 2026] No pending sync request.
+[Tue Feb 24 01:44:32 EST 2026] Pending sync request found — running sync...
+🚀 Mission Control Sync — 2/24/2026, 1:44:32 AM
+   Target: https://first-ram-850.convex.site
+   🔔 Dashboard-requested sync (requested at 1:44:27 AM)
+  📂 Loaded 42 sessions from dump
+
+🤖 Syncing agents...
+  ✅ Anago (active, 7 today, $0.08 today)
+  ✅ IQ (idle, 0 today, $0.00 today)
+  ✅ Mako (active, 0 today, $0.00 today)
+  ✅ GreenSea (idle, 0 today, $0.00 today)
+  ✅ Uni (idle, 0 today, $0.00 today)
+
+⏰ Syncing cron jobs...
+  ✅ 41 cron jobs synced
+
+📡 Syncing sessions + costs...
+  ✅ 42 sessions synced with cost data
+  💰 Actual total cost across sessions: $0.40
+
+📝 Syncing tasks from workspace...
+  ✅ 14 tasks from TODO.md synced
+  ✅ 30 total tasks synced (TODO.md + tasks/)
+
+📋 Syncing recent activity...
+  ✅ 17 new activity entries synced
+
+🦈 Syncing Mako scalper trades...
+  ℹ️  No new trades to sync
+  ✅ Status synced: active (live), 1 trades, 0.0% WR
+  ✅ 1 daily PnL records synced
+
+🪸 Syncing Uni Kalshi trading...
+  ✅ Uni status synced: idle, $518.76 balance, 0 trades
+
+🧠 Syncing memory files...
+  ✅ memory/2026-02-24.md
+  ✅ 1 files synced, 18 unchanged
+
+✅ Sync complete!
+[Tue Feb 24 01:44:43 EST 2026] Sync complete.
+[Tue Feb 24 01:45:14 EST 2026] No pending sync request.
+[Tue Feb 24 01:45:44 EST 2026] No pending sync request.
+[Tue Feb 24 01:46:14 EST 2026] No pending sync request.
+[Tue Feb 24 01:46:44 EST 2026] No pending sync request.
+[Tue Feb 24 01:47:14 EST 2026] No pending sync request.
+[Tue Feb 24 01:47:45 EST 2026] No pending sync request.
+[Tue Feb 24 01:48:15 EST 2026] No pending sync request.
+[Tue Feb 24 01:48:45 EST 2026] No pending sync request.
+[Tue Feb 24 01:49:15 EST 2026] No pending sync request.
+[Tue Feb 24 01:49:45 EST 2026] No pending sync request.
+[Tue Feb 24 01:50:16 EST 2026] No pending sync request.
+[Tue Feb 24 01:50:46 EST 2026] No pending sync request.
+[Tue Feb 24 01:51:16 EST 2026] No pending sync request.
+[Tue Feb 24 01:51:46 EST 2026] No pending sync request.
+[Tue Feb 24 01:52:16 EST 2026] No pending sync request.
+[Tue Feb 24 01:52:47 EST 2026] No pending sync request.
+[Tue Feb 24 01:53:17 EST 2026] No pending sync request.
+[Tue Feb 24 01:53:47 EST 2026] No pending sync request.
+[Tue Feb 24 01:54:17 EST 2026] No pending sync request.
+[Tue Feb 24 01:54:47 EST 2026] No pending sync request.
+[Tue Feb 24 01:55:18 EST 2026] No pending sync request.
+[Tue Feb 24 01:55:48 EST 2026] No pending sync request.
+[Tue Feb 24 01:56:18 EST 2026] No pending sync request.
+[Tue Feb 24 01:56:48 EST 2026] No pending sync request.
+[Tue Feb 24 01:57:18 EST 2026] No pending sync request.
+[Tue Feb 24 01:57:48 EST 2026] No pending sync request.
+[Tue Feb 24 01:58:19 EST 2026] No pending sync request.
+[Tue Feb 24 01:58:49 EST 2026] No pending sync request.
+[Tue Feb 24 01:59:19 EST 2026] No pending sync request.
+[Tue Feb 24 01:59:49 EST 2026] No pending sync request.
+[Tue Feb 24 02:00:19 EST 2026] No pending sync request.
+[Tue Feb 24 02:00:50 EST 2026] No pending sync request.
+[Tue Feb 24 02:01:20 EST 2026] No pending sync request.
+[Tue Feb 24 02:01:50 EST 2026] No pending sync request.
+[Tue Feb 24 02:02:20 EST 2026] No pending sync request.
+[Tue Feb 24 02:02:50 EST 2026] No pending sync request.
+[Tue Feb 24 02:03:21 EST 2026] No pending sync request.
+[Tue Feb 24 02:03:51 EST 2026] No pending sync request.
+[Tue Feb 24 02:04:21 EST 2026] No pending sync request.
+[Tue Feb 24 02:04:51 EST 2026] No pending sync request.
+[Tue Feb 24 02:05:21 EST 2026] No pending sync request.
+[Tue Feb 24 02:05:52 EST 2026] No pending sync request.
+[Tue Feb 24 02:06:22 EST 2026] No pending sync request.
+[Tue Feb 24 02:06:52 EST 2026] No pending sync request.
+[Tue Feb 24 02:07:22 EST 2026] No pending sync request.
+[Tue Feb 24 02:07:52 EST 2026] No pending sync request.
+[Tue Feb 24 02:08:23 EST 2026] No pending sync request.
+[Tue Feb 24 02:08:53 EST 2026] No pending sync request.
+[Tue Feb 24 02:09:23 EST 2026] No pending sync request.
+[Tue Feb 24 02:09:53 EST 2026] No pending sync request.
+[Tue Feb 24 02:10:23 EST 2026] Pending sync request found — running sync...
+🚀 Mission Control Sync — 2/24/2026, 2:10:23 AM
+   Target: https://first-ram-850.convex.site
+   🔔 Dashboard-requested sync (requested at 2:10:19 AM)
+  📂 Loaded 42 sessions from dump
+
+🤖 Syncing agents...
+  ✅ Anago (active, 7 today, $0.08 today)
+  ✅ IQ (idle, 0 today, $0.00 today)
+  ✅ Mako (active, 0 today, $0.00 today)
+  ✅ GreenSea (idle, 0 today, $0.00 today)
+  ✅ Uni (idle, 0 today, $0.00 today)
+
+⏰ Syncing cron jobs...
+  ✅ 41 cron jobs synced
+
+📡 Syncing sessions + costs...
+  ✅ 42 sessions synced with cost data
+  💰 Actual total cost across sessions: $0.40
+
+📝 Syncing tasks from workspace...
+  ✅ 14 tasks from TODO.md synced
+  ✅ 30 total tasks synced (TODO.md + tasks/)
+
+📋 Syncing recent activity...
+  ✅ 0 new activity entries synced
+
+🦈 Syncing Mako scalper trades...
+  ℹ️  No new trades to sync
+  ✅ Status synced: active (live), 3 trades, 0.0% WR
+  ✅ 1 daily PnL records synced
+
+🪸 Syncing Uni Kalshi trading...
+  ✅ Uni status synced: idle, $518.76 balance, 0 trades
+
+🧠 Syncing memory files...
+  ✅ 0 files synced, 19 unchanged
+
+✅ Sync complete!
+[Tue Feb 24 02:10:34 EST 2026] Sync complete.
+[Tue Feb 24 02:11:04 EST 2026] No pending sync request.
+[Tue Feb 24 02:11:34 EST 2026] No pending sync request.
+[Tue Feb 24 02:12:04 EST 2026] No pending sync request.
+[Tue Feb 24 02:12:34 EST 2026] No pending sync request.
+[Tue Feb 24 02:13:05 EST 2026] No pending sync request.
+[Tue Feb 24 02:13:35 EST 2026] No pending sync request.
+[Tue Feb 24 02:14:05 EST 2026] No pending sync request.
+[Tue Feb 24 02:14:35 EST 2026] No pending sync request.
+[Tue Feb 24 02:15:05 EST 2026] No pending sync request.

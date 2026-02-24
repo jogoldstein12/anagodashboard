@@ -106,6 +106,11 @@ http.route({
     const body = await request.json();
     await ctx.runMutation(internal.sync.syncAgentStatus, {
       agentId: body.agentId,
+      name: body.name,
+      emoji: body.emoji,
+      model: body.model,
+      trustLevel: body.trustLevel,
+      color: body.color,
       status: body.status,
       currentTask: body.currentTask,
       tokensToday: body.tokensToday,
@@ -376,6 +381,19 @@ http.route({
     });
 
     return jsonResponse({ ok: true });
+  }),
+});
+
+// POST /api/admin/clear-mako-history — wipes stale mako_trades + mako_pnl from Convex
+http.route({
+  path: "/api/admin/clear-mako-history",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    if (!checkAuth(request)) {
+      return jsonResponse({ error: "Unauthorized" }, 401);
+    }
+    const result = await ctx.runMutation(internal.mako.clearMakoHistory, {});
+    return jsonResponse({ ok: true, ...result });
   }),
 });
 

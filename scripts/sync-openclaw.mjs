@@ -313,6 +313,11 @@ async function syncAgents(sessions) {
     
     const result = await post("/api/sync/agent-status", {
       agentId: agent.agentId,
+      name: agent.name,
+      emoji: agent.emoji,
+      model: agent.model,
+      trustLevel: agent.trustLevel,
+      color: agent.color,
       status,
       tokensToday: stats.tokensToday || 0,
       tasksToday: stats.sessionsToday || 0,

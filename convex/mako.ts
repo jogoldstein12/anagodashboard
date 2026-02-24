@@ -93,6 +93,23 @@ export const syncMakoPnl = internalMutation({
   },
 });
 
+export const clearMakoHistory = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    // Delete all mako_trades
+    const trades = await ctx.db.query("mako_trades").collect();
+    for (const t of trades) {
+      await ctx.db.delete(t._id);
+    }
+    // Delete all mako_pnl
+    const pnls = await ctx.db.query("mako_pnl").collect();
+    for (const p of pnls) {
+      await ctx.db.delete(p._id);
+    }
+    return { deletedTrades: trades.length, deletedPnl: pnls.length };
+  },
+});
+
 // Query functions
 
 export const getMakoStatus = query({
