@@ -190,15 +190,41 @@ async function syncAgents(sessions) {
   const agentsRaw = run("openclaw agents list --json");
   const agentsList = parseJson(agentsRaw) || [];
   
-  const agentDefs = [
-    { agentId: "anago", name: "Anago", emoji: "🍣", model: "claude-opus-4-6", trustLevel: "L3", color: "#3b82f6" },
-    { agentId: "iq", name: "IQ", emoji: "🧠", model: "kimi-k2.5", trustLevel: "L1", color: "#22c55e" },
-    { agentId: "greensea", name: "GreenSea", emoji: "🌊", model: "kimi-k2.5", trustLevel: "L1", color: "#10b981" },
-    { agentId: "courtside", name: "Courtside", emoji: "🏀", model: "haiku-3.5", trustLevel: "L1", color: "#f97316" },
-    { agentId: "afterdark", name: "After Dark", emoji: "🌙", model: "haiku-3.5", trustLevel: "L1", color: "#a855f7" },
-    { agentId: "mako", name: "Mako", emoji: "🦈", model: "kimi-k2.5", trustLevel: "L2", color: "#f59e0b" },
-    { agentId: "uni", name: "Uni", emoji: "🪸", model: "kimi-k2.5", trustLevel: "L2", color: "#06b6d4" },
-  ];
+  // ── Build agentDefs dynamically from OpenClaw registry ──────────────────
+  // Curated display preferences for known agents.
+  // Any new agent registered in openclaw.json will appear automatically
+  // on the next sync with a deterministic fallback color + 🤖 emoji.
+  const AGENT_DISPLAY = {
+    main:      { agentId: "anago", name: "Anago",      emoji: "🍣", trustLevel: "L3", color: "#3b82f6" },
+    anago:     { agentId: "anago", name: "Anago",      emoji: "🍣", trustLevel: "L3", color: "#3b82f6" },
+    iq:        {                   name: "IQ",          emoji: "🧠", trustLevel: "L1", color: "#22c55e" },
+    greensea:  {                   name: "GreenSea",   emoji: "🌊", trustLevel: "L1", color: "#10b981" },
+    courtside: {                   name: "Courtside",  emoji: "🏀", trustLevel: "L1", color: "#f97316" },
+    afterdark: {                   name: "After Dark", emoji: "🌙", trustLevel: "L1", color: "#a855f7" },
+    mako:      {                   name: "Mako",       emoji: "🦈", trustLevel: "L2", color: "#f59e0b" },
+    uni:       {                   name: "Uni",        emoji: "🪸", trustLevel: "L2", color: "#06b6d4" },
+  };
+  const FALLBACK_COLORS = ["#ef4444","#8b5cf6","#ec4899","#14b8a6","#84cc16","#f97316"];
+  function hashColor(id) {
+    let h = 0;
+    for (const c of id) h = (h * 31 + c.charCodeAt(0)) & 0x7fffffff;
+    return FALLBACK_COLORS[h % FALLBACK_COLORS.length];
+  }
+
+  const agentDefs = agentsList.map(a => {
+    const display = AGENT_DISPLAY[a.id] || {};
+    const agentId = display.agentId || a.id;
+    const rawModel = a.model || "";
+    const modelShort = rawModel.includes("/") ? rawModel.split("/").pop() : rawModel;
+    return {
+      agentId,
+      name:       display.name       || a.name || a.identityName || agentId,
+      emoji:      display.emoji      || a.identityEmoji           || "🤖",
+      model:      modelShort                                       || "unknown",
+      trustLevel: display.trustLevel                              || "L1",
+      color:      display.color      || hashColor(agentId),
+    };
+  });
 
   // Calculate per-agent stats from sessions
   const agentStats = {};

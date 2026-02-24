@@ -10,27 +10,53 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-export const AGENTS = {
-  anago:    { label: "Anago",      color: "#3b82f6", bg: "bg-blue-500",    dot: "bg-blue-400" },
-  iq:       { label: "IQ",         color: "#22c55e", bg: "bg-green-500",   dot: "bg-green-400" },
-  greensea: { label: "GreenSea",   color: "#10b981", bg: "bg-emerald-500", dot: "bg-emerald-400" },
-  courtside:{ label: "Courtside",  color: "#f97316", bg: "bg-orange-500",  dot: "bg-orange-400" },
-  afterdark:{ label: "After Dark", color: "#a855f7", bg: "bg-purple-500",  dot: "bg-purple-400" },
-  mako:     { label: "Mako",       color: "#f59e0b", bg: "bg-amber-500",   dot: "bg-amber-400" },
-  uni:      { label: "Uni",        color: "#06b6d4", bg: "bg-cyan-500",    dot: "bg-cyan-400" },
-} as const;
+// ─── Agent Display Config ────────────────────────────────────────────────────
+// Add curated styles here for known agents.
+// Any agent NOT listed gets auto-styled with a deterministic color + 🤖 emoji.
+// This means new agents registered in OpenClaw appear on the dashboard automatically
+// after the next sync — no code changes needed.
 
-export type AgentKey = keyof typeof AGENTS;
+type AgentStyle = { label: string; color: string; bg: string; dot: string; emoji: string };
 
-export const AGENT_EMOJI: Record<AgentKey, string> = {
-  anago:    "🍣",
-  iq:       "🧠",
-  greensea: "🌊",
-  courtside:"🏀",
-  afterdark:"🌙",
-  mako:     "🦈",
-  uni:      "🪸",
+const AGENT_STYLES: Record<string, AgentStyle> = {
+  anago:    { label: "Anago",      color: "#3b82f6", bg: "bg-blue-500",    dot: "bg-blue-400",    emoji: "🍣" },
+  iq:       { label: "IQ",         color: "#22c55e", bg: "bg-green-500",   dot: "bg-green-400",   emoji: "🧠" },
+  greensea: { label: "GreenSea",   color: "#10b981", bg: "bg-emerald-500", dot: "bg-emerald-400", emoji: "🌊" },
+  courtside:{ label: "Courtside",  color: "#f97316", bg: "bg-orange-500",  dot: "bg-orange-400",  emoji: "🏀" },
+  afterdark:{ label: "After Dark", color: "#a855f7", bg: "bg-purple-500",  dot: "bg-purple-400",  emoji: "🌙" },
+  mako:     { label: "Mako",       color: "#f59e0b", bg: "bg-amber-500",   dot: "bg-amber-400",   emoji: "🦈" },
+  uni:      { label: "Uni",        color: "#06b6d4", bg: "bg-cyan-500",    dot: "bg-cyan-400",    emoji: "🪸" },
 };
+
+// Fallback palette for agents not in AGENT_STYLES — deterministic by agent id
+const _FALLBACK_PALETTE = [
+  { color: "#ef4444", bg: "bg-red-500",    dot: "bg-red-400" },
+  { color: "#8b5cf6", bg: "bg-violet-500", dot: "bg-violet-400" },
+  { color: "#ec4899", bg: "bg-pink-500",   dot: "bg-pink-400" },
+  { color: "#14b8a6", bg: "bg-teal-500",   dot: "bg-teal-400" },
+  { color: "#84cc16", bg: "bg-lime-500",   dot: "bg-lime-400" },
+];
+function _hashId(s: string): number {
+  let h = 0;
+  for (const c of s) h = (h * 31 + c.charCodeAt(0)) & 0x7fffffff;
+  return h;
+}
+
+/** Get display config for any agent id — known or unknown. Never returns undefined. */
+export function getAgentConfig(id: string): AgentStyle {
+  if (AGENT_STYLES[id]) return AGENT_STYLES[id];
+  const palette = _FALLBACK_PALETTE[_hashId(id) % _FALLBACK_PALETTE.length];
+  return { label: id, emoji: "🤖", ...palette };
+}
+
+// ─── Legacy exports (backward-compat) ────────────────────────────────────────
+// Components that use AGENTS[key]?.color or AGENT_EMOJI[key] keep working.
+// For new code, prefer getAgentConfig(id).
+export const AGENTS: Record<string, Omit<AgentStyle, "emoji">> = AGENT_STYLES;
+export type AgentKey = keyof typeof AGENT_STYLES;
+export const AGENT_EMOJI: Record<string, string> = Object.fromEntries(
+  Object.entries(AGENT_STYLES).map(([k, v]) => [k, v.emoji])
+);
 
 export const ACTION_ICONS: Record<string, LucideIcon> = {
   email_sent: Mail,
