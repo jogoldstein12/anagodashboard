@@ -894,22 +894,24 @@ async function syncUni(state) {
     }
   }
 
-  // Sync status to Convex
-  await post("/api/sync/uni-status", {
+  // Sync status to Convex — strip undefined/null optional fields (Convex rejects null for optional validators)
+  const uniStatusPayload = {
     status,
-    ticker: pendingTrade?.ticker || null,
-    releaseDate: pendingTrade?.release_date || nextReleaseDate,
-    tradeDirection: pendingTrade?.direction || null,
-    entryPrice: pendingTrade?.entry_price || null,
-    betSize: pendingTrade?.bet_size || null,
-    multiplier: pendingTrade?.multiplier || null,
     kalshiBalance,
     winRate,
     totalTrades,
     totalPnl,
-    regime,
-    signalSummary: pendingTrade?.signal_summary || null,
-  });
+    ...(pendingTrade?.ticker        && { ticker: pendingTrade.ticker }),
+    ...(pendingTrade?.release_date  && { releaseDate: pendingTrade.release_date }),
+    ...((pendingTrade?.release_date || nextReleaseDate) && { releaseDate: pendingTrade?.release_date || nextReleaseDate }),
+    ...(pendingTrade?.direction     && { tradeDirection: pendingTrade.direction }),
+    ...(pendingTrade?.entry_price   && { entryPrice: pendingTrade.entry_price }),
+    ...(pendingTrade?.bet_size      && { betSize: pendingTrade.bet_size }),
+    ...(pendingTrade?.multiplier    && { multiplier: pendingTrade.multiplier }),
+    ...(pendingTrade?.signal_summary && { signalSummary: pendingTrade.signal_summary }),
+    ...(regime                      && { regime }),
+  };
+  await post("/api/sync/uni-status", uniStatusPayload);
 
   console.log(`  ✅ Uni status synced: ${status}, $${kalshiBalance.toFixed(2)} balance, ${totalTrades} trades`);
 
