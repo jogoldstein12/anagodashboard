@@ -168,6 +168,7 @@ function inferAgent(session) {
   if (key.includes("agent:courtside:")) return "courtside";
   if (key.includes("agent:afterdark:")) return "afterdark";
   if (key.includes("agent:mako:") || key.includes("agent:poly:")) return "mako";
+  if (key.includes("agent:uni:")) return "uni";
   
   // Check labels (sub-agent sessions spawned from main)
   if (label.includes("iq") || label.includes("instantiq")) return "iq";
@@ -175,6 +176,7 @@ function inferAgent(session) {
   if (label.includes("courtside")) return "courtside";
   if (label.includes("afterdark") || label.includes("after-dark") || label.includes("after dark")) return "afterdark";
   if (label.includes("oracle") || label.includes("mako") || label.includes("poly") || label.includes("polymarket") || label.includes("trading")) return "mako";
+  if (label.includes("uni") || label.includes("kalshi") || label.includes("cpi")) return "uni";
   if (label.includes("mc-") || label.includes("mission-control") || label.includes("dashboard")) return "anago";
   
   return "anago";
@@ -195,6 +197,7 @@ async function syncAgents(sessions) {
     { agentId: "courtside", name: "Courtside", emoji: "🏀", model: "haiku-3.5", trustLevel: "L1", color: "#f97316" },
     { agentId: "afterdark", name: "After Dark", emoji: "🌙", model: "haiku-3.5", trustLevel: "L1", color: "#a855f7" },
     { agentId: "mako", name: "Mako", emoji: "🦈", model: "kimi-k2.5", trustLevel: "L2", color: "#f59e0b" },
+    { agentId: "uni", name: "Uni", emoji: "🪸", model: "kimi-k2.5", trustLevel: "L2", color: "#06b6d4" },
   ];
 
   // Calculate per-agent stats from sessions
@@ -249,20 +252,35 @@ async function syncAgents(sessions) {
       status = "offline";
     }
     
-    // Special Mako detection — runs as standalone scalper process
+    // Special Mako detection — runs as standalone scalper process, not an OpenClaw session
     if (agent.agentId === "mako") {
       try {
         const makoProc = run("pgrep -f 'scalper.py' || true").trim();
         if (makoProc) {
           status = "active";
-          // Check log recency
+          // Check log recency (correct path)
           try {
-            const logStat = run("stat -f '%m' ~/mako_trading/scalper.log 2>/dev/null || true").trim();
+            const logPath = "/Users/anago/.openclaw/workspace/projects/polymarket/trading/logs/scalper.log";
+            const logStat = run(`stat -f '%m' ${logPath} 2>/dev/null || true`).trim();
             if (logStat) {
               const logAge = Date.now() - parseInt(logStat) * 1000;
-              if (logAge < 300000) status = "active"; // log updated in last 5 min
+              status = logAge < 300000 ? "active" : "idle"; // active if log updated in last 5 min
             }
           } catch {}
+        }
+      } catch {}
+    }
+
+    // Special Uni detection — check if any pending_trade.json or recent trade activity
+    if (agent.agentId === "uni") {
+      try {
+        const pendingPath = "/Users/anago/.openclaw/workspace/agents/uni/phase1/pending_trade.json";
+        const pendingExists = run(`test -f ${pendingPath} && echo yes || echo no`).trim();
+        if (pendingExists === "yes") {
+          const pending = JSON.parse(run(`cat ${pendingPath}`));
+          if (pending.status === "pending" || pending.status === "approved") {
+            status = "active"; // has a live pending trade
+          }
         }
       } catch {}
     }

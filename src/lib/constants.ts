@@ -11,23 +11,25 @@ import {
 } from "lucide-react";
 
 export const AGENTS = {
-  anago: { label: "Anago", color: "#3b82f6", bg: "bg-blue-500", dot: "bg-blue-400" },
-  iq: { label: "IQ", color: "#22c55e", bg: "bg-green-500", dot: "bg-green-400" },
-  greensea: { label: "GreenSea", color: "#10b981", bg: "bg-emerald-500", dot: "bg-emerald-400" },
-  courtside: { label: "Courtside", color: "#f97316", bg: "bg-orange-500", dot: "bg-orange-400" },
-  afterdark: { label: "After Dark", color: "#a855f7", bg: "bg-purple-500", dot: "bg-purple-400" },
-  mako: { label: "Mako", color: "#f59e0b", bg: "bg-amber-500", dot: "bg-amber-400" },
+  anago:    { label: "Anago",      color: "#3b82f6", bg: "bg-blue-500",    dot: "bg-blue-400" },
+  iq:       { label: "IQ",         color: "#22c55e", bg: "bg-green-500",   dot: "bg-green-400" },
+  greensea: { label: "GreenSea",   color: "#10b981", bg: "bg-emerald-500", dot: "bg-emerald-400" },
+  courtside:{ label: "Courtside",  color: "#f97316", bg: "bg-orange-500",  dot: "bg-orange-400" },
+  afterdark:{ label: "After Dark", color: "#a855f7", bg: "bg-purple-500",  dot: "bg-purple-400" },
+  mako:     { label: "Mako",       color: "#f59e0b", bg: "bg-amber-500",   dot: "bg-amber-400" },
+  uni:      { label: "Uni",        color: "#06b6d4", bg: "bg-cyan-500",    dot: "bg-cyan-400" },
 } as const;
 
 export type AgentKey = keyof typeof AGENTS;
 
 export const AGENT_EMOJI: Record<AgentKey, string> = {
-  anago: "🍣",
-  iq: "🧠",
+  anago:    "🍣",
+  iq:       "🧠",
   greensea: "🌊",
-  courtside: "🏀",
-  afterdark: "🌙",
-  mako: "🦈",
+  courtside:"🏀",
+  afterdark:"🌙",
+  mako:     "🦈",
+  uni:      "🪸",
 };
 
 export const ACTION_ICONS: Record<string, LucideIcon> = {
