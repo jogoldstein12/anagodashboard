@@ -583,12 +583,13 @@ async function syncMako(state) {
   const query = `SELECT id, ts, window_start, slug, direction, confidence, score, window_delta, token_price, outcome, pnl, bankroll_after, dry_run FROM scalp_trades WHERE id > ${lastSyncedId} ORDER BY id ASC LIMIT 100;`;
   const raw = run(`sqlite3 -json "${DB_PATH}" "${query}"`);
 
-  if (!raw) {
+  // Empty string is valid (no trades yet) — only bail on actual null/undefined
+  if (raw === null || raw === undefined) {
     console.log("  ⚠️  Could not query Mako DB");
     return;
   }
 
-  const trades = parseJson(raw);
+  const trades = parseJson(raw) || [];
   if (!trades || !Array.isArray(trades) || trades.length === 0) {
     console.log("  ℹ️  No new trades to sync");
   } else {
@@ -660,16 +661,34 @@ async function syncMako(state) {
   const losses = stats?.losses || 0;
   const winRate = totalTrades > 0 ? (wins / totalTrades) * 100 : 0;
 
+  // Query on-chain USDC balance of proxy wallet
+  let walletUsdc = 0;
+  try {
+    const proxy = "0xC6EEEDF1AEAC0ab054CEd5b327566b12b7f4DdeC";
+    const usdcContract = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174";
+    const callData = "0x70a08231" + proxy.slice(2).toLowerCase().padStart(64, "0");
+    const rpcPayload = JSON.stringify({
+      jsonrpc: "2.0", method: "eth_call",
+      params: [{ to: usdcContract, data: callData }, "latest"], id: 1,
+    });
+    const rpcRaw = run(`curl -s -X POST https://polygon-bor.publicnode.com -H 'Content-Type: application/json' -d '${rpcPayload}'`);
+    const rpcResp = rpcRaw ? JSON.parse(rpcRaw) : null;
+    if (rpcResp?.result) walletUsdc = parseInt(rpcResp.result, 16) / 1e6;
+  } catch {}
+
+  // If no trades yet, use bankroll from plist/startup as reported bankroll
+  const reportedBankroll = latest?.bankroll_after || walletUsdc || 0;
+
   await post("/api/sync/mako-status", {
     status: makoStatus,
     mode: makoMode,
-    bankroll: latest?.bankroll_after || 0,
+    bankroll: reportedBankroll,
     totalPnl: stats?.total_pnl || 0,
     totalTrades,
     winRate: Math.round(winRate * 10) / 10,
     wins,
     losses,
-    walletUsdc: 0, // TODO: query on-chain balance
+    walletUsdc: Math.round(walletUsdc * 100) / 100,
     lastTradeAt: (stats?.last_trade_ts || 0) * 1000,
   });
   console.log(`  ✅ Status synced: ${makoStatus} (${makoMode}), ${totalTrades} trades, ${winRate.toFixed(1)}% WR`);
