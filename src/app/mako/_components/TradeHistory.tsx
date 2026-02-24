@@ -116,8 +116,15 @@ export function TradeHistory({ trades }: TradeHistoryProps) {
                     </div>
                   </td>
                   {(() => {
-                    const cost = trade.tokenPrice > 0 ? trade.pnl / ((1 / trade.tokenPrice) - 1) : 0;
-                    const pctReturn = cost > 0 ? (trade.pnl / cost) * 100 : 0;
+                    // For resolved trades: derive cost from pnl + tokenPrice
+                    // For pending trades: estimate from tokenPrice tier ($10 if >=0.97, else $5)
+                    let cost: number;
+                    if (!isPending && trade.pnl !== 0 && trade.tokenPrice > 0) {
+                      cost = trade.pnl / ((1 / trade.tokenPrice) - 1);
+                    } else {
+                      cost = trade.tokenPrice >= 0.97 ? 10 : 5;
+                    }
+                    const pctReturn = !isPending && cost > 0 ? (trade.pnl / cost) * 100 : 0;
                     return (
                       <>
                         <td className="py-3 px-2 text-right">
@@ -127,7 +134,7 @@ export function TradeHistory({ trades }: TradeHistoryProps) {
                         </td>
                         <td className="py-3 px-2 text-right">
                           <span className={`text-sm ${trade.pnl >= 0 ? "text-green-400" : "text-red-400"}`}>
-                            {trade.pnl >= 0 ? "+" : ""}{pctReturn.toFixed(0)}%
+                            {isPending ? "—" : `${trade.pnl >= 0 ? "+" : ""}${pctReturn.toFixed(0)}%`}
                           </span>
                         </td>
                       </>

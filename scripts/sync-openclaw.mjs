@@ -718,6 +718,36 @@ async function syncMako(state) {
     console.log(`  ✅ ${trades.length} trades synced (last id: ${maxId})`);
   }
 
+  // Re-sync any previously-pending trades that have now resolved.
+  // syncMakoTrade is an upsert by tradeId — safe to call repeatedly.
+  if (lastSyncedId > 0) {
+    const resolvedQuery = `SELECT id, ts, window_start, slug, direction, confidence, score, window_delta, token_price, outcome, pnl, bankroll_after, dry_run FROM scalp_trades WHERE outcome != 'pending' AND id <= ${lastSyncedId} ORDER BY id ASC;`;
+    const resolvedRaw = run(`sqlite3 -json "${DB_PATH}" "${resolvedQuery}"`);
+    const resolvedTrades = parseJson(resolvedRaw) || [];
+    if (resolvedTrades.length > 0) {
+      for (const t of resolvedTrades) {
+        const betSize = t.token_price >= 0.97 ? 10.00 : 5.00;
+        await post("/api/sync/mako-trade", {
+          tradeId: String(t.id),
+          timestamp: t.ts * 1000,
+          windowStart: (t.window_start || 0) * 1000,
+          slug: t.slug || "",
+          direction: t.direction || "up",
+          confidence: t.token_price || 0,
+          score: t.score || 0,
+          windowDelta: t.window_delta || 0,
+          tokenPrice: t.token_price || 0,
+          betSize: betSize,
+          outcome: t.outcome || "pending",
+          pnl: t.pnl || 0,
+          bankrollAfter: t.bankroll_after || 0,
+          dryRun: t.dry_run === 1 || t.dry_run === true,
+        });
+      }
+      console.log(`  ✅ ${resolvedTrades.length} previously-pending trade(s) updated`);
+    }
+  }
+
   // Compute aggregate stats for mako-status
   const statsQuery = `SELECT
     COUNT(*) as total,
