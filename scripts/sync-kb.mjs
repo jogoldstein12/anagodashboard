@@ -31,9 +31,26 @@ async function main() {
   // Push snapshot
   await client.mutation(api.kb.upsertSnapshot, { snapshot });
   
-  // Push individual items for search
+  // Push individual items for search — map to Convex schema fields only
   if (snapshot.recent_items?.length) {
-    await client.mutation(api.kb.syncItems, { items: snapshot.recent_items.slice(0, 200) });
+    const items = snapshot.recent_items.slice(0, 200).map(item => ({
+      item_id: item.id,
+      title: item.title,
+      ingested_at: item.ingested_at,
+      primary_category: item.primary_category,
+      source_type: item.source_type,
+      ...(item.source_url != null && { source_url: item.source_url }),
+      ...(item.content_summary != null && { content_summary: item.content_summary }),
+      ...(item.quality_score != null && { quality_score: item.quality_score }),
+      ...(item.freshness_score != null && { freshness_score: item.freshness_score }),
+      ...(item.save_intent != null && { save_intent: item.save_intent }),
+      ...(item.save_project != null && { save_project: item.save_project }),
+      ...(item.times_referenced != null && { times_referenced: item.times_referenced }),
+      ...(item.entity_names != null && { entity_names: item.entity_names }),
+      ...(item.tags != null && { tags: item.tags }),
+      ...(item.source_id != null && { source_id: item.source_id }),
+    }));
+    await client.mutation(api.kb.syncItems, { items });
   }
   
   console.log(`[kb-sync] Done. ${snapshot.stats?.total_items ?? 0} items, ${snapshot.stats?.open_gaps ?? 0} gaps.`);
