@@ -212,6 +212,40 @@ export default defineSchema({
     status: v.string(), // "pending", "fulfilled", "expired"
   }).index("by_status", ["status", "requestedAt"]),
 
+  // KB (KNOWLEDGE BASE) TABLES
+  kb_snapshot: defineTable({
+    exported_at: v.string(),
+    stats: v.any(),
+    recent_items: v.array(v.any()),
+    watchlists: v.array(v.any()),
+    research_jobs: v.array(v.any()),
+    gaps: v.array(v.any()),
+    competitive_monitors: v.array(v.any()),
+    economic_indicators: v.array(v.any()),
+    agent_injections: v.array(v.any()),
+  }).index("by_exported_at", ["exported_at"]),
+
+  kb_items: defineTable({
+    item_id: v.number(),
+    title: v.string(),
+    source_url: v.optional(v.string()),
+    source_type: v.string(),
+    source_id: v.optional(v.string()),
+    primary_category: v.string(),
+    content_summary: v.optional(v.string()),
+    quality_score: v.optional(v.number()),
+    freshness_score: v.optional(v.number()),
+    save_intent: v.optional(v.string()),
+    save_project: v.optional(v.string()),
+    ingested_at: v.string(),
+    tags: v.optional(v.array(v.string())),
+    entity_names: v.optional(v.array(v.string())),
+    times_referenced: v.optional(v.number()),
+  }).searchIndex("search_kb", {
+    searchField: "title",
+    filterFields: ["primary_category", "source_type"],
+  }),
+
   // UNI KALSHI TRADING TABLES
   uni_status: defineTable({
     ticker: v.optional(v.string()),         // e.g. "KXCPIYOY-26MAR-T2.5"

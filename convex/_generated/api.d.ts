@@ -14,6 +14,7 @@ import type * as approvals from "../approvals.js";
 import type * as costEntries from "../costEntries.js";
 import type * as documents from "../documents.js";
 import type * as http from "../http.js";
+import type * as kb from "../kb.js";
 import type * as mako from "../mako.js";
 import type * as notifications from "../notifications.js";
 import type * as scheduledTasks from "../scheduledTasks.js";
@@ -37,6 +38,7 @@ declare const fullApi: ApiFromModules<{
   costEntries: typeof costEntries;
   documents: typeof documents;
   http: typeof http;
+  kb: typeof kb;
   mako: typeof mako;
   notifications: typeof notifications;
   scheduledTasks: typeof scheduledTasks;
