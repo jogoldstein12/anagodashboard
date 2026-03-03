@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useMutation } from "convex/react";
+import { useMutation, useAction } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { GlassPanel } from "@/components/GlassPanel";
 import { AgentBadge } from "@/components/AgentBadge";
@@ -33,7 +33,7 @@ export function TaskCard({ task, onEdit }: TaskCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [statusMenuOpen, setStatusMenuOpen] = useState(false);
   const statusRef = useRef<HTMLDivElement>(null);
-  const updateStatus = useMutation(api.tasks.updateStatus);
+  const updateStatusWithNotify = useAction(api.tasks.updateStatusWithNotify);
 
   const priority = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.p3;
   const isOverdue = task.dueDate && task.dueDate < Date.now() && task.status !== "done";
@@ -59,9 +59,9 @@ export function TaskCard({ task, onEdit }: TaskCardProps) {
     setStatusMenuOpen(false);
     if (newStatus === task.status) return;
     try {
-      await updateStatus({ id: task._id as any, status: newStatus });
+      await updateStatusWithNotify({ id: task._id as any, status: newStatus });
     } catch {
-      // failed
+      // failed — fall back silently
     }
   };
 
@@ -127,6 +127,17 @@ export function TaskCard({ task, onEdit }: TaskCardProps) {
             </div>
           )}
         </div>
+      )}
+
+      {/* Mark Done Button (only show for non-done tasks) */}
+      {task.status !== "done" && (
+        <button
+          onClick={(e) => { e.stopPropagation(); handleStatusChange("done"); }}
+          className="w-full flex items-center justify-center gap-2 py-1.5 rounded-md text-xs font-medium text-green-400/70 hover:text-green-400 hover:bg-green-400/[0.08] border border-green-400/[0.12] hover:border-green-400/[0.25] transition-all"
+        >
+          <CheckCircle2 className="w-3.5 h-3.5" />
+          Mark Done
+        </button>
       )}
 
       {/* Footer: Due date + Quick Status + Created */}

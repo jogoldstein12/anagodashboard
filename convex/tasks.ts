@@ -1,6 +1,7 @@
 // @ts-nocheck
-import { query, mutation, type QueryCtx, type MutationCtx } from "./_generated/server";
+import { query, mutation, action, type QueryCtx, type MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
+import { api } from "./_generated/api";
 
 // List tasks with filtering by status and/or agent
 export const list = query({
@@ -160,5 +161,69 @@ export const remove = mutation({
   args: { id: v.id("tasks") },
   handler: async (ctx: MutationCtx, args: { id: any }) => {
     await ctx.db.delete(args.id);
+  },
+});
+// Send Telegram notification when task status changes from dashboard
+const TELEGRAM_BOT_TOKEN = "8359421785:AAFKWgxdEArOhH7PJdXaldtNmgDP6l2aPcA";
+const TELEGRAM_CHAT_ID = "6491266739";
+
+async function sendTelegramNotification(title: string, oldStatus: string, newStatus: string) {
+  const statusEmoji: Record<string, string> = {
+    backlog: "📋",
+    up_next: "⏳",
+    in_progress: "🔄",
+    done: "✅",
+  };
+
+  const message = `📊 *Dashboard Task Update*\n\n*${title}*\n${statusEmoji[oldStatus] || "❓"} ${oldStatus} → ${statusEmoji[newStatus] || "❓"} ${newStatus}\n\n_Changed by Josh from Mission Control_`;
+
+  try {
+    await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: TELEGRAM_CHAT_ID,
+        text: message,
+        parse_mode: "Markdown",
+      }),
+    });
+  } catch (e) {
+    console.error("Failed to send Telegram notification:", e);
+  }
+}
+
+// Update status + send Telegram notification (action wraps mutation + HTTP call)
+export const updateStatusWithNotify = action({
+  args: {
+    id: v.id("tasks"),
+    status: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // Get the task first
+    const task: any = await ctx.runQuery(api.tasks.getById, { id: args.id });
+    if (!task) throw new Error("Task not found");
+
+    const oldStatus = task.status;
+
+    // Update status via mutation
+    await ctx.runMutation(api.tasks.updateStatus, {
+      id: args.id,
+      status: args.status,
+    });
+
+    // Send Telegram notification (only if status actually changed)
+    if (oldStatus !== args.status) {
+      await sendTelegramNotification(task.title, oldStatus, args.status);
+    }
+
+    return { success: true, title: task.title, oldStatus, newStatus: args.status };
+  },
+});
+
+// Get a single task by ID (needed by the action above)
+export const getById = query({
+  args: { id: v.id("tasks") },
+  handler: async (ctx: QueryCtx, args: { id: any }) => {
+    return await ctx.db.get(args.id);
   },
 });
