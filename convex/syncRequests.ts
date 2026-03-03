@@ -85,3 +85,15 @@ export const fulfillPendingSync = internalMutation({
     return pending.length;
   },
 });
+
+export const createFulfilled = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const now = Date.now();
+    return await ctx.db.insert("sync_requests", {
+      requestedAt: now,
+      status: "fulfilled",
+      fulfilledAt: now,
+    });
+  },
+});

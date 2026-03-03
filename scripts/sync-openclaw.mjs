@@ -1146,10 +1146,12 @@ async function main() {
   state.lastSync = Date.now();
   saveState(state);
 
-  // Fulfill any pending "Sync Now" button requests
+  // Fulfill any pending "Sync Now" button requests + update lastFulfilledAt
   try {
-    await post("/api/sync/fulfill-sync-request", {});
-  } catch {}
+    await post("/api/sync/complete", {});
+  } catch (e) {
+    console.log("  ⚠️ Failed to update sync timestamp:", e.message);
+  }
 
   console.log("\n✅ Sync complete!");
 }

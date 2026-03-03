@@ -33,6 +33,22 @@ http.route({
   }),
 });
 
+// POST /api/sync/complete — called by sync script when done
+http.route({
+  path: "/api/sync/complete",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    if (!checkAuth(request)) {
+      return jsonResponse({ error: "Unauthorized" }, 401);
+    }
+
+    const count = await ctx.runMutation(internal.syncRequests.fulfillPendingSync);
+    // Also insert+fulfill a new request so lastFulfilledAt is always updated
+    const id = await ctx.runMutation(internal.syncRequests.createFulfilled);
+    return jsonResponse({ fulfilled: count, created: !!id });
+  }),
+});
+
 // POST /api/sync/activity
 http.route({
   path: "/api/sync/activity",
