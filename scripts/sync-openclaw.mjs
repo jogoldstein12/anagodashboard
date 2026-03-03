@@ -454,8 +454,8 @@ async function syncTodoMd(workspaceDir, state) {
     else if (line.startsWith("## 🟠")) currentTier = "p2";
     else if (line.startsWith("## 🟢")) currentTier = "p3";
     
-    // Parse task headers: ### N. [emoji] Title
-    const taskMatch = line.match(/^###\s+\d+\.\s*([⬜✅🔄❌])\s*(.+)$/);
+    // Parse task headers: ### ID. [emoji] Title (ID can be number or alphanumeric like KB-P1-C)
+    const taskMatch = line.match(/^###\s+[\w-]+\.\s*([⬜✅🔄❌])\s*(.+)$/);
     if (taskMatch) {
       const statusEmoji = taskMatch[1];
       const title = taskMatch[2].trim();
