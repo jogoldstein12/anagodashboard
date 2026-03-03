@@ -449,13 +449,19 @@ async function syncTodoMd(workspaceDir, state) {
     const line = lines[i];
     
     // Detect tier headers
-    if (line.startsWith("## 🔴")) currentTier = "p0";
+    if (line.startsWith("## 🔥")) currentTier = "p0";       // Active Now
+    else if (line.startsWith("## 👤")) currentTier = "p1";   // Needs Josh
+    else if (line.startsWith("## ⏸️")) currentTier = "p2";   // On Hold
+    else if (line.startsWith("## 📋")) currentTier = "p3";   // Backlog
+    // Legacy format support
+    else if (line.startsWith("## 🔴")) currentTier = "p0";
     else if (line.startsWith("## 🟡")) currentTier = "p1";
     else if (line.startsWith("## 🟠")) currentTier = "p2";
     else if (line.startsWith("## 🟢")) currentTier = "p3";
     
-    // Parse task headers: ### ID. [emoji] Title (ID can be number or alphanumeric like KB-P1-C)
-    const taskMatch = line.match(/^###\s+[\w-]+\.\s*([⬜✅🔄❌])\s*(.+)$/);
+    // Parse task headers: ### ID. [emoji] Title OR - **ID.** [emoji] Title (backlog inline format)
+    const taskMatch = line.match(/^###\s+[\w-]+\.\s*([⬜✅🔄❌])\s*(.+)$/) ||
+                      line.match(/^-\s+\*\*[\w-]+\.\*\*\s*([⬜✅🔄❌])\s*(.+)$/);
     if (taskMatch) {
       const statusEmoji = taskMatch[1];
       const title = taskMatch[2].trim();
