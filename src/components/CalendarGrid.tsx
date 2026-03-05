@@ -78,12 +78,12 @@ export function CalendarGrid() {
       } else if (hourPart.startsWith("*/")) {
         // e.g. */2 — every 2 hours
         const interval = parseInt(hourPart.replace("*/", ""));
-        for (let h = 6; h <= 22; h += interval) hours.push(h);
+        for (let h = 0; h < 24; h += interval) hours.push(h);
       } else if (hourPart.includes("-")) {
         // e.g. 8-15
         const [start, end] = hourPart.split("-").map(Number);
-        // For ranges, show start and end
-        hours = [start, end];
+        // For ranges, show all hours in range
+        for (let h = start; h <= end; h++) hours.push(h);
       } else {
         hours = [parseInt(hourPart)];
       }
