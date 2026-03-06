@@ -48,6 +48,8 @@ export const syncUniTrade = internalMutation({
     contracts: v.number(),
     outcome: v.string(),
     pnl: v.optional(v.number()),
+    currentMid: v.optional(v.number()),
+    unrealizedPnl: v.optional(v.number()),
     actualCpi: v.optional(v.number()),
     regime: v.optional(v.string()),
     executedAt: v.number(),
@@ -87,5 +89,16 @@ export const getUniTrades = query({
       .withIndex("by_releaseDate")
       .order("desc")
       .take(limit);
+  },
+});
+
+export const getOpenUniPositions = query({
+  handler: async (ctx) => {
+    const trades = await ctx.db
+      .query("uni_trades")
+      .withIndex("by_releaseDate")
+      .order("desc")
+      .take(50);
+    return trades.filter((t) => t.outcome === "pending");
   },
 });

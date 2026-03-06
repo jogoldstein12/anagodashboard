@@ -15,6 +15,8 @@ interface UniTrade {
   contracts: number;
   outcome: string;
   pnl?: number;
+  currentMid?: number;
+  unrealizedPnl?: number;
   regime?: string;
   executedAt: number;
 }
@@ -63,7 +65,8 @@ export function TradeHistory({ trades }: TradeHistoryProps) {
               <th className="text-left py-3 px-2 text-xs font-medium text-white/50">Release Date</th>
               <th className="text-left py-3 px-2 text-xs font-medium text-white/50">Ticker</th>
               <th className="text-left py-3 px-2 text-xs font-medium text-white/50">Entry Type</th>
-              <th className="text-right py-3 px-2 text-xs font-medium text-white/50">Entry Price</th>
+              <th className="text-right py-3 px-2 text-xs font-medium text-white/50">Entry</th>
+              <th className="text-right py-3 px-2 text-xs font-medium text-white/50">Mid</th>
               <th className="text-right py-3 px-2 text-xs font-medium text-white/50">Bet Size</th>
               <th className="text-left py-3 px-2 text-xs font-medium text-white/50">Outcome</th>
               <th className="text-right py-3 px-2 text-xs font-medium text-white/50">P&L</th>
@@ -90,6 +93,15 @@ export function TradeHistory({ trades }: TradeHistoryProps) {
                     <span className="text-sm text-white/70">¢{trade.entryPrice.toFixed(1)}</span>
                   </td>
                   <td className="py-3 px-2 text-right">
+                    {trade.currentMid != null ? (
+                      <span className={`text-sm font-medium ${trade.currentMid > trade.entryPrice ? "text-green-400" : trade.currentMid < trade.entryPrice ? "text-red-400" : "text-white/70"}`}>
+                        ¢{trade.currentMid.toFixed(1)}
+                      </span>
+                    ) : (
+                      <span className="text-white/30 text-sm">—</span>
+                    )}
+                  </td>
+                  <td className="py-3 px-2 text-right">
                     <span className="text-sm text-white/70">${trade.betSize.toFixed(2)}</span>
                   </td>
                   <td className="py-3 px-2">
@@ -111,7 +123,11 @@ export function TradeHistory({ trades }: TradeHistoryProps) {
                     )}
                   </td>
                   <td className="py-3 px-2 text-right">
-                    {trade.pnl !== undefined && trade.pnl !== null ? (
+                    {isPending && trade.unrealizedPnl != null ? (
+                      <span className={`text-sm font-medium ${trade.unrealizedPnl >= 0 ? "text-green-400" : "text-red-400"}`}>
+                        {trade.unrealizedPnl >= 0 ? "+" : ""}${trade.unrealizedPnl.toFixed(2)}
+                      </span>
+                    ) : trade.pnl !== undefined && trade.pnl !== null ? (
                       <span className={`text-sm font-medium ${trade.pnl >= 0 ? "text-green-400" : "text-red-400"}`}>
                         {trade.pnl >= 0 ? "+" : ""}${trade.pnl.toFixed(2)}
                       </span>

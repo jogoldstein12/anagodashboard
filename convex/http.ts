@@ -390,6 +390,8 @@ http.route({
       contracts: body.contracts,
       outcome: body.outcome,
       pnl: body.pnl,
+      ...(body.currentMid !== undefined && { currentMid: body.currentMid }),
+      ...(body.unrealizedPnl !== undefined && { unrealizedPnl: body.unrealizedPnl }),
       actualCpi: body.actualCpi,
       regime: body.regime,
       executedAt: body.executedAt,

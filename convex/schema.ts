@@ -275,6 +275,8 @@ export default defineSchema({
     contracts: v.number(),
     outcome: v.string(),          // "pending" | "win" | "loss"
     pnl: v.optional(v.number()),
+    currentMid: v.optional(v.number()),       // live Kalshi mid price in cents
+    unrealizedPnl: v.optional(v.number()),    // (currentMid - entryPrice) / 100 * contracts
     actualCpi: v.optional(v.number()),
     regime: v.optional(v.string()),
     executedAt: v.number(),

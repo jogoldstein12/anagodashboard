@@ -792,7 +792,8 @@ async function syncMako(state) {
     } catch {}
   }
 
-  if (latest && latest.dry_run === 1) makoMode = "dry-run";
+  // Only trust DB dry_run flag when Mako is NOT running (process args are authoritative when live)
+  if (!scalperPid && latest && latest.dry_run === 1) makoMode = "dry-run";
 
   const totalTrades = stats?.total || 0;
   const wins = stats?.wins || 0;
@@ -814,8 +815,11 @@ async function syncMako(state) {
     if (rpcResp?.result) walletUsdc = parseInt(rpcResp.result, 16) / 1e6;
   } catch {}
 
-  // If no trades yet, use bankroll from plist/startup as reported bankroll
-  const reportedBankroll = latest?.bankroll_after || walletUsdc || 0;
+  // Prefer on-chain wallet when Mako is running (most accurate);
+  // fall back to last DB bankroll_after when offline.
+  const reportedBankroll = (makoStatus === "active" && walletUsdc > 0)
+    ? walletUsdc
+    : (latest?.bankroll_after || walletUsdc || 0);
 
   await post("/api/sync/mako-status", {
     status: makoStatus,
@@ -893,36 +897,77 @@ async function syncUni(state) {
     }
   }
 
-  // Read trade_log.csv for additional stats if calibration not present
+  // ── CSV column layout (as of Mar 6 2026) ──────────────────────────────────
+  // 0:id  1:entry_date  2:target_exit_date  3:ticker  4:direction  5:quantity
+  // 6:entry_price  7:cost  8:status  9:order_id  10:filled_qty  11:mid_at_entry
+  // 12:col13  13:exit_price  14:pnl  15:notes
+  // ──────────────────────────────────────────────────────────────────────────
+
+  // Read trade_log.csv for stats + open position detection
   const tradeLogPath = resolve(uniDir, "trade_log.csv");
+  let openPositions = [];
   if (existsSync(tradeLogPath)) {
     try {
       const csvContent = readFileSync(tradeLogPath, "utf-8");
-      const lines = csvContent.trim().split("\n").slice(1); // Skip header
-      
-      if (totalTrades === 0) totalTrades = lines.length;
-      
-      // Calculate wins and PnL from CSV
+      const lines = csvContent.trim().split("\n").slice(1); // Skip header row
+
       let wins = 0;
       let pnlSum = 0;
+      let closedCount = 0;
+
       for (const line of lines) {
-        const cols = line.split(",");
-        if (cols.length > 5) {
-          const outcome = cols[5]?.toLowerCase();
-          const pnl = parseFloat(cols[6]) || 0;
-          if (outcome === "win") wins++;
+        // Handle quoted fields (notes may contain commas)
+        const cols = line.match(/(".*?"|[^,]+)(?=,|$)|(?<=,|^)(?=,|$)/g)
+          ?.map(c => c?.replace(/^"|"$/g, "").trim()) ?? line.split(",").map(c => c.trim());
+
+        const rowId        = cols[0] || "";
+        const entryDate    = cols[1] || "";
+        const exitDate     = cols[2] || "";
+        const ticker       = cols[3] || "";
+        const direction    = cols[4] || "";
+        const quantity     = parseInt(cols[5]) || 0;
+        const entryPrice   = parseFloat(cols[6]) || 0;
+        const cost         = parseFloat(cols[7]) || 0;
+        const rowStatus    = (cols[8] || "").toLowerCase();
+        const exitPrice    = parseFloat(cols[13]) || 0;
+        const pnl          = parseFloat(cols[14]) || 0;
+        const notes        = cols[15] || "";
+
+        if (!rowId || !ticker) continue;
+
+        if (rowStatus === "open") {
+          openPositions.push({ rowId, entryDate, exitDate, ticker, direction, quantity, entryPrice, cost, notes });
+          status = "active"; // Has live open positions → mark active
+        } else if (rowStatus === "closed") {
+          closedCount++;
+          if (exitPrice > 0 && exitPrice > entryPrice) wins++;
           pnlSum += pnl;
         }
       }
-      
-      if (totalTrades > 0) winRate = (wins / totalTrades) * 100;
+
+      totalTrades = lines.filter(l => l.trim()).length;
+      if (totalTrades > 0 && closedCount > 0) winRate = (wins / closedCount) * 100;
       if (totalPnl === 0) totalPnl = pnlSum;
     } catch (err) {
       console.log(`  ⚠️  Error reading trade_log.csv: ${err.message}`);
     }
   }
 
-  // Read pending_trade.json for active trade info
+  // Fetch live mid-prices from Kalshi for open positions
+  async function fetchKalshiMid(ticker) {
+    try {
+      const url = `https://api.elections.kalshi.com/trade-api/v2/markets/${ticker}`;
+      const res = await fetch(url, { headers: { accept: "application/json" }, signal: AbortSignal.timeout(5000) });
+      if (!res.ok) return null;
+      const data = await res.json();
+      const m = data?.market || {};
+      const bid = m.yes_bid || 0;
+      const ask = m.yes_ask || 0;
+      return bid && ask ? Math.round((bid + ask) / 2 * 10) / 10 : null;
+    } catch { return null; }
+  }
+
+  // Read pending_trade.json for trades awaiting Josh's approval
   const pendingPath = resolve(uniDir, "pending_trade.json");
   if (existsSync(pendingPath)) {
     try {
@@ -935,6 +980,13 @@ async function syncUni(state) {
     }
   }
 
+  // Build status payload — use first open position as the "active trade" shown on dashboard
+  const firstOpen = openPositions[0] || null;
+  const firstOpenMid = firstOpen ? await fetchKalshiMid(firstOpen.ticker) : null;
+  const firstOpenPnl = firstOpen && firstOpenMid
+    ? Math.round((firstOpenMid - firstOpen.entryPrice) / 100 * firstOpen.quantity * 100) / 100
+    : null;
+
   // Sync status to Convex — strip undefined/null optional fields (Convex rejects null for optional validators)
   const uniStatusPayload = {
     status,
@@ -942,21 +994,37 @@ async function syncUni(state) {
     winRate,
     totalTrades,
     totalPnl,
-    ...(pendingTrade?.ticker        && { ticker: pendingTrade.ticker }),
-    ...(pendingTrade?.release_date  && { releaseDate: pendingTrade.release_date }),
-    ...((pendingTrade?.release_date || nextReleaseDate) && { releaseDate: pendingTrade?.release_date || nextReleaseDate }),
-    ...(pendingTrade?.direction     && { tradeDirection: pendingTrade.direction }),
-    ...(pendingTrade?.entry_price   && { entryPrice: pendingTrade.entry_price }),
-    ...(pendingTrade?.bet_size      && { betSize: pendingTrade.bet_size }),
-    ...(pendingTrade?.multiplier    && { multiplier: pendingTrade.multiplier }),
-    ...(pendingTrade?.signal_summary && { signalSummary: pendingTrade.signal_summary }),
-    ...(regime                      && { regime }),
+    // Active trade info: prefer open CSV position over pending_trade.json
+    ...(firstOpen?.ticker        && { ticker: firstOpen.ticker }),
+    ...(firstOpen?.exitDate      && { releaseDate: firstOpen.exitDate }),
+    ...(firstOpen?.direction     && { tradeDirection: firstOpen.direction }),
+    ...(firstOpen?.entryPrice    && { entryPrice: firstOpen.entryPrice }),
+    ...(firstOpen?.cost          && { betSize: firstOpen.cost }),
+    ...(firstOpenPnl !== null    && { unrealizedPnl: firstOpenPnl }),
+    // Fallback to pending_trade.json fields if no CSV open position
+    ...(!firstOpen && pendingTrade?.ticker        && { ticker: pendingTrade.ticker }),
+    ...(!firstOpen && pendingTrade?.release_date  && { releaseDate: pendingTrade.release_date }),
+    ...(!firstOpen && pendingTrade?.direction     && { tradeDirection: pendingTrade.direction }),
+    ...(!firstOpen && pendingTrade?.entry_price   && { entryPrice: pendingTrade.entry_price }),
+    ...(!firstOpen && pendingTrade?.bet_size      && { betSize: pendingTrade.bet_size }),
+    ...(!firstOpen && pendingTrade?.signal_summary && { signalSummary: pendingTrade.signal_summary }),
+    ...(regime && { regime }),
   };
   await post("/api/sync/uni-status", uniStatusPayload);
 
-  console.log(`  ✅ Uni status synced: ${status}, $${kalshiBalance.toFixed(2)} balance, ${totalTrades} trades`);
+  // Log open positions summary
+  if (openPositions.length > 0) {
+    for (const pos of openPositions) {
+      const mid = await fetchKalshiMid(pos.ticker);
+      const pnl = mid ? Math.round((mid - pos.entryPrice) / 100 * pos.quantity * 100) / 100 : null;
+      const pnlStr = pnl !== null ? ` | P&L: ${pnl >= 0 ? "+" : ""}$${pnl.toFixed(2)}` : "";
+      console.log(`  📊 Open: ${pos.ticker} | ${pos.quantity} contracts @ ${pos.entryPrice}¢ | mid=${mid ?? "?"}¢${pnlStr}`);
+    }
+  }
 
-  // Sync individual trades from CSV
+  console.log(`  ✅ Uni status synced: ${status}, $${kalshiBalance.toFixed(2)} balance, ${totalTrades} trades, ${openPositions.length} open`);
+
+  // Sync individual trades from CSV — correct column mapping
   if (existsSync(tradeLogPath)) {
     try {
       const csvContent = readFileSync(tradeLogPath, "utf-8");
@@ -964,34 +1032,53 @@ async function syncUni(state) {
       let syncedTrades = 0;
 
       for (const line of lines) {
-        const cols = line.split(",");
-        if (cols.length >= 7) {
-          const tradeId = cols[0]?.trim();
-          const releaseDate = cols[1]?.trim();
-          const ticker = cols[2]?.trim();
-          const entryType = cols[3]?.trim();
-          const entryPrice = parseFloat(cols[4]) || 0;
-          const betSize = parseFloat(cols[5]) || 0;
-          const outcome = cols[6]?.trim().toLowerCase() || "pending";
-          const pnl = parseFloat(cols[7]) || 0;
-          const contracts = Math.round((betSize / entryPrice) * 100) || 0;
+        const cols = line.match(/(".*?"|[^,]+)(?=,|$)|(?<=,|^)(?=,|$)/g)
+          ?.map(c => c?.replace(/^"|"$/g, "").trim()) ?? line.split(",").map(c => c.trim());
 
-          if (tradeId && releaseDate) {
-            await post("/api/sync/uni-trade", {
-              tradeId,
-              releaseDate,
-              ticker,
-              entryType: entryType === "T14" ? "T-14" : (entryType === "T1" ? "T-1" : entryType),
-              entryPrice,
-              betSize,
-              contracts,
-              outcome: outcome === "win" ? "win" : (outcome === "loss" ? "loss" : "pending"),
-              pnl: outcome !== "pending" ? pnl : null,
-              regime: null,
-              executedAt: Date.now(),
-            });
-            syncedTrades++;
+        const tradeId    = cols[0]?.trim();
+        const entryDate  = cols[1]?.trim();
+        const exitDate   = cols[2]?.trim();
+        const ticker     = cols[3]?.trim();
+        const direction  = cols[4]?.trim();
+        const quantity   = parseInt(cols[5]) || 0;
+        const entryPrice = parseFloat(cols[6]) || 0;
+        const cost       = parseFloat(cols[7]) || 0;
+        const rowStatus  = (cols[8] || "pending").trim().toLowerCase();
+        const exitPrice  = parseFloat(cols[13]) || 0;
+        const pnl        = parseFloat(cols[14]) || 0;
+
+        const outcome = rowStatus === "open" ? "pending"
+                      : rowStatus === "closed" && exitPrice > 0 && exitPrice >= entryPrice ? "win"
+                      : rowStatus === "closed" ? "loss"
+                      : "pending";
+
+        if (tradeId && ticker) {
+          // For open positions: fetch live mid price and compute unrealized P&L
+          let currentMid = undefined;
+          let unrealizedPnl = undefined;
+          if (outcome === "pending" && ticker) {
+            currentMid = await fetchKalshiMid(ticker);
+            if (currentMid !== null && entryPrice > 0) {
+              unrealizedPnl = Math.round((currentMid - entryPrice) / 100 * quantity * 100) / 100;
+            }
           }
+
+          await post("/api/sync/uni-trade", {
+            tradeId,
+            releaseDate: exitDate || entryDate,
+            ticker,
+            entryType: direction,
+            entryPrice,
+            betSize: cost,
+            contracts: quantity,
+            outcome,
+            pnl: outcome !== "pending" ? pnl : 0,
+            ...(currentMid !== undefined && currentMid !== null && { currentMid }),
+            ...(unrealizedPnl !== undefined && { unrealizedPnl }),
+            regime: "N/A",
+            executedAt: new Date(entryDate).getTime() || Date.now(),
+          });
+          syncedTrades++;
         }
       }
 
