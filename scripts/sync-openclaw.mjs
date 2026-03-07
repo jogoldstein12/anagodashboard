@@ -715,7 +715,7 @@ async function syncMako(state) {
         tokenPrice: t.token_price || 0,
         outcome: t.outcome || "pending",
         pnl: t.pnl || 0,
-        bankrollAfter: t.bankroll_after || 0,
+        ...(t.bankroll_after != null ? { bankrollAfter: t.bankroll_after } : {}),
         dryRun: t.dry_run === 1 || t.dry_run === true,
       });
       if (t.id > maxId) maxId = t.id;
@@ -746,7 +746,7 @@ async function syncMako(state) {
           betSize: betSize,
           outcome: t.outcome || "pending",
           pnl: t.pnl || 0,
-          bankrollAfter: t.bankroll_after || 0,
+          ...(t.bankroll_after != null ? { bankrollAfter: t.bankroll_after } : {}),
           dryRun: t.dry_run === 1 || t.dry_run === true,
         });
       }
@@ -759,9 +759,10 @@ async function syncMako(state) {
     COUNT(*) as total,
     SUM(CASE WHEN outcome='win' THEN 1 ELSE 0 END) as wins,
     SUM(CASE WHEN outcome='loss' THEN 1 ELSE 0 END) as losses,
-    SUM(pnl) as total_pnl,
-    MAX(ts) as last_trade_ts
-    FROM scalp_trades;`;
+    SUM(CASE WHEN outcome != 'pending' THEN pnl ELSE 0 END) as total_pnl,
+    MAX(ts) as last_trade_ts,
+    SUM(CASE WHEN outcome != 'pending' THEN 1 ELSE 0 END) as settled
+    FROM scalp_trades WHERE dry_run = 0;`;
   const statsRaw = run(`sqlite3 -json "${DB_PATH}" "${statsQuery}"`);
   const statsArr = parseJson(statsRaw);
   const stats = statsArr && statsArr[0] ? statsArr[0] : null;
@@ -796,9 +797,11 @@ async function syncMako(state) {
   if (!scalperPid && latest && latest.dry_run === 1) makoMode = "dry-run";
 
   const totalTrades = stats?.total || 0;
+  const settledTrades = stats?.settled || 0;
   const wins = stats?.wins || 0;
   const losses = stats?.losses || 0;
-  const winRate = totalTrades > 0 ? (wins / totalTrades) * 100 : 0;
+  // Win rate only counts settled trades (not pending)
+  const winRate = settledTrades > 0 ? (wins / settledTrades) * 100 : 0;
 
   // Query on-chain USDC balance of proxy wallet
   let walletUsdc = 0;

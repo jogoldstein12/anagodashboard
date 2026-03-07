@@ -18,6 +18,9 @@ interface BankrollChartProps {
 export function BankrollChart({ trades }: BankrollChartProps) {
   const chartData = useMemo(() => {
     if (!trades || trades.length === 0) return null;
+    // Filter out pending trades (bankrollAfter = 0 or falsy) — they haven't resolved yet
+    trades = trades.filter((t) => t.bankrollAfter && t.bankrollAfter > 0);
+    if (trades.length === 0) return null;
 
     // Trades come sorted desc; reverse to get chronological order
     const sorted = [...trades].reverse();

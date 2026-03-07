@@ -47,7 +47,7 @@ export const syncMakoTrade = internalMutation({
     tokenPrice: v.number(),
     outcome: v.string(),
     pnl: v.number(),
-    bankrollAfter: v.number(),
+    bankrollAfter: v.optional(v.number()),
     dryRun: v.boolean(),
   },
   handler: async (ctx, args) => {
