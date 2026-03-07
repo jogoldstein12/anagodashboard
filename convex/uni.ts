@@ -93,12 +93,17 @@ export const getUniTrades = query({
 });
 
 export const getOpenUniPositions = query({
-  handler: async (ctx) => {
-    const trades = await ctx.db
+  args: {},
+  handler: async (ctx, _args) => {
+    const all = await ctx.db
       .query("uni_trades")
       .withIndex("by_releaseDate")
       .order("desc")
       .take(50);
-    return trades.filter((t) => t.outcome === "pending");
+    const open = [];
+    for (const t of all) {
+      if (t.outcome === "pending") open.push(t);
+    }
+    return open;
   },
 });

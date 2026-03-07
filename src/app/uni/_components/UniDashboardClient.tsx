@@ -57,8 +57,8 @@ export function UniDashboardClient() {
       {/* Stats Row */}
       <UniStatsRow status={status} />
 
-      {/* Signal Card */}
-      <SignalCard status={status} />
+      {/* Signal Card — pass trades so it can filter open positions client-side */}
+      <SignalCard status={status} trades={trades} />
 
       {/* Trade History */}
       <TradeHistory trades={trades} />

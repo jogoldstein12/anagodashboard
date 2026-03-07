@@ -1,10 +1,23 @@
 "use client";
 
-import { useQuery } from "convex/react";
-import { api } from "../../../../convex/_generated/api";
 import { GlassPanel } from "@/components/GlassPanel";
 import { Badge } from "@/components/ui/Badge";
-import { Signal, Calendar, TrendingUp, TrendingDown, Activity, DollarSign } from "lucide-react";
+import { Signal, Calendar, TrendingUp, TrendingDown } from "lucide-react";
+
+interface UniTrade {
+  _id: string;
+  tradeId: string;
+  releaseDate: string;
+  ticker: string;
+  entryType: string;
+  entryPrice: number;
+  betSize: number;
+  contracts: number;
+  outcome: string;
+  pnl?: number;
+  currentMid?: number;
+  unrealizedPnl?: number;
+}
 
 interface UniStatus {
   status: string;
@@ -19,11 +32,12 @@ interface UniStatus {
 
 interface SignalCardProps {
   status: UniStatus | null | undefined;
+  trades: UniTrade[] | null | undefined;
 }
 
-export function SignalCard({ status }: SignalCardProps) {
-  const openPositions = useQuery(api.uni.getOpenUniPositions);
-  const hasActive = (openPositions?.length ?? 0) > 0;
+export function SignalCard({ status, trades }: SignalCardProps) {
+  const openPositions = (trades ?? []).filter((t) => t.outcome === "pending");
+  const hasActive = openPositions.length > 0;
 
   return (
     <GlassPanel className="p-6">
@@ -31,17 +45,15 @@ export function SignalCard({ status }: SignalCardProps) {
         <div className="flex items-center gap-2">
           <Signal className="w-5 h-5 text-cyan-400" />
           <h2 className="text-lg font-semibold text-white">
-            {hasActive ? `Active Positions (${openPositions!.length})` : "Next Trade"}
+            {hasActive ? `Active Positions (${openPositions.length})` : "Next Trade"}
           </h2>
         </div>
-        {hasActive && (
-          <Badge variant="success" size="sm">Live</Badge>
-        )}
+        {hasActive && <Badge variant="success" size="sm">Live</Badge>}
       </div>
 
       {hasActive ? (
         <div className="space-y-3">
-          {openPositions!.map((pos) => {
+          {openPositions.map((pos) => {
             const unrealized = pos.unrealizedPnl ?? null;
             const mid = pos.currentMid ?? null;
             const isUp = unrealized !== null && unrealized >= 0;
@@ -69,7 +81,7 @@ export function SignalCard({ status }: SignalCardProps) {
                     <p className="text-white text-sm">¢{pos.entryPrice.toFixed(1)}</p>
                   </div>
 
-                  {/* Current Mid — live price */}
+                  {/* Live Mid */}
                   <div>
                     <p className="text-white/40 text-xs mb-0.5">Current Mid</p>
                     {mid !== null ? (
@@ -99,7 +111,7 @@ export function SignalCard({ status }: SignalCardProps) {
                   </div>
                 </div>
 
-                {/* Secondary row: contracts + bet size */}
+                {/* Secondary row */}
                 <div className="flex items-center gap-4 mt-3 pt-3 border-t border-white/[0.06]">
                   <span className="text-white/40 text-xs">{pos.contracts} contracts</span>
                   <span className="text-white/40 text-xs">Cost: ${pos.betSize.toFixed(2)}</span>
@@ -123,15 +135,11 @@ export function SignalCard({ status }: SignalCardProps) {
           <p className="text-sm text-white/50 max-w-sm mx-auto">
             {status?.releaseDate
               ? `Next review scheduled for ${status.releaseDate}.`
-              : "Uni is monitoring market conditions. Next trade opportunity will appear here."
-            }
+              : "Uni is monitoring market conditions. Next trade opportunity will appear here."}
           </p>
           {status?.regime && (
             <div className="mt-4">
-              <Badge
-                variant={status.regime === "HOT" ? "error" : status.regime === "FLAT" ? "warning" : "info"}
-                size="md"
-              >
+              <Badge variant={status.regime === "HOT" ? "error" : status.regime === "FLAT" ? "warning" : "info"} size="md">
                 Current Regime: {status.regime}
               </Badge>
             </div>
