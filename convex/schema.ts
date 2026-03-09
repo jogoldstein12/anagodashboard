@@ -159,51 +159,72 @@ export default defineSchema({
     .index("by_status", ["status", "createdAt"])
     .index("by_agent", ["agent", "createdAt"]),
 
-  // MAKO SCALPER TRADING TABLES
+  // MAKO V2 DUAL-LEG TRADING TABLES
   mako_status: defineTable({
-    status: v.string(), // "active", "idle", "offline"
-    mode: v.string(), // "live" or "dry-run"
+    status: v.string(), // "live" | "dry_run" | "stopped"
+    polyBalance: v.number(),
+    kalshiBalance: v.number(),
     bankroll: v.number(),
+    peakBankroll: v.number(),
+    drawdownPct: v.number(),
+    dailyPnl: v.number(),
     totalPnl: v.number(),
     totalTrades: v.number(),
+    openPositions: v.number(),
     winRate: v.number(),
-    wins: v.number(),
-    losses: v.number(),
-    walletUsdc: v.number(),
-    lastTradeAt: v.number(),
     lastSyncAt: v.number(),
+    lastTradeAt: v.optional(v.number()),
   })
     .index("by_lastSync", ["lastSyncAt"]),
 
   mako_trades: defineTable({
     tradeId: v.string(),
-    timestamp: v.number(),
-    windowStart: v.number(),
-    slug: v.string(),
-    direction: v.string(), // "up" or "down"
-    confidence: v.number(),
-    score: v.number(),
-    windowDelta: v.number(),
-    tokenPrice: v.number(),
-    outcome: v.string(), // "win", "loss", "pending"
-    pnl: v.number(),
-    bankrollAfter: v.number(),
+    ts: v.number(),
+    strategy: v.string(),
+    eventId: v.string(),
+    legAPlatform: v.string(),
+    legAMarket: v.string(),
+    legASide: v.string(),
+    legAPrice: v.number(),
+    legAContracts: v.number(),
+    legAStatus: v.string(),
+    legBPlatform: v.optional(v.string()),
+    legBMarket: v.optional(v.string()),
+    legBSide: v.optional(v.string()),
+    legBPrice: v.optional(v.number()),
+    legBContracts: v.optional(v.number()),
+    legBStatus: v.optional(v.string()),
+    expectedProfitCents: v.optional(v.number()),
+    actualProfitCents: v.optional(v.number()),
+    status: v.string(),
+    resolutionDate: v.optional(v.string()),
+    notes: v.optional(v.string()),
     dryRun: v.boolean(),
   })
     .index("by_tradeId", ["tradeId"])
-    .index("by_timestamp", ["timestamp"])
-    .index("by_outcome", ["outcome", "timestamp"]),
+    .index("by_ts", ["ts"])
+    .index("by_status", ["status"])
+    .index("by_strategy", ["strategy"]),
 
   mako_pnl: defineTable({
-    date: v.string(), // YYYY-MM-DD
+    date: v.string(),
     trades: v.number(),
     wins: v.number(),
-    pnl: v.number(),
+    pnlCents: v.number(),
     bankrollClose: v.number(),
     timestamp: v.number(),
   })
     .index("by_date", ["date"])
     .index("by_timestamp", ["timestamp"]),
+
+  mako_risk_events: defineTable({
+    ts: v.number(),
+    eventType: v.string(),
+    bankroll: v.number(),
+    dailyPnl: v.number(),
+    notes: v.optional(v.string()),
+  })
+    .index("by_ts", ["ts"]),
 
   // SYNC REQUEST QUEUE (dashboard "Sync Now" button → Mac mini pickup)
   sync_requests: defineTable({

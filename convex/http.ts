@@ -257,7 +257,7 @@ http.route({
   }),
 });
 
-// MAKO SYNC ROUTES
+// MAKO V2 SYNC ROUTES
 
 // POST /api/sync/mako-status
 http.route({
@@ -271,14 +271,16 @@ http.route({
     const body = await request.json();
     await ctx.runMutation(internal.mako.syncMakoStatus, {
       status: body.status,
-      mode: body.mode,
+      polyBalance: body.polyBalance,
+      kalshiBalance: body.kalshiBalance,
       bankroll: body.bankroll,
+      peakBankroll: body.peakBankroll,
+      drawdownPct: body.drawdownPct,
+      dailyPnl: body.dailyPnl,
       totalPnl: body.totalPnl,
       totalTrades: body.totalTrades,
+      openPositions: body.openPositions,
       winRate: body.winRate,
-      wins: body.wins,
-      losses: body.losses,
-      walletUsdc: body.walletUsdc,
       lastTradeAt: body.lastTradeAt,
     });
 
@@ -298,17 +300,26 @@ http.route({
     const body = await request.json();
     await ctx.runMutation(internal.mako.syncMakoTrade, {
       tradeId: body.tradeId,
-      timestamp: body.timestamp,
-      windowStart: body.windowStart,
-      slug: body.slug,
-      direction: body.direction,
-      confidence: body.confidence,
-      score: body.score,
-      windowDelta: body.windowDelta,
-      tokenPrice: body.tokenPrice,
-      outcome: body.outcome,
-      pnl: body.pnl,
-      bankrollAfter: body.bankrollAfter,
+      ts: body.ts,
+      strategy: body.strategy,
+      eventId: body.eventId,
+      legAPlatform: body.legAPlatform,
+      legAMarket: body.legAMarket,
+      legASide: body.legASide,
+      legAPrice: body.legAPrice,
+      legAContracts: body.legAContracts,
+      legAStatus: body.legAStatus,
+      legBPlatform: body.legBPlatform,
+      legBMarket: body.legBMarket,
+      legBSide: body.legBSide,
+      legBPrice: body.legBPrice,
+      legBContracts: body.legBContracts,
+      legBStatus: body.legBStatus,
+      expectedProfitCents: body.expectedProfitCents,
+      actualProfitCents: body.actualProfitCents,
+      status: body.status,
+      resolutionDate: body.resolutionDate,
+      notes: body.notes,
       dryRun: body.dryRun,
     });
 
@@ -330,8 +341,30 @@ http.route({
       date: body.date,
       trades: body.trades,
       wins: body.wins,
-      pnl: body.pnl,
+      pnlCents: body.pnlCents,
       bankrollClose: body.bankrollClose,
+    });
+
+    return jsonResponse({ ok: true });
+  }),
+});
+
+// POST /api/sync/mako-risk-event
+http.route({
+  path: "/api/sync/mako-risk-event",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    if (!checkAuth(request)) {
+      return jsonResponse({ error: "Unauthorized" }, 401);
+    }
+
+    const body = await request.json();
+    await ctx.runMutation(internal.mako.syncMakoRiskEvent, {
+      ts: body.ts,
+      eventType: body.eventType,
+      bankroll: body.bankroll,
+      dailyPnl: body.dailyPnl,
+      notes: body.notes,
     });
 
     return jsonResponse({ ok: true });

@@ -9,6 +9,7 @@ result=$(curl -s --max-time 5 "$CONVEX_URL/api/check-pending-sync" 2>/dev/null)
 if echo "$result" | grep -q '"pending":true'; then
   echo "[$(date)] Pending sync request found — running sync..."
   node /Users/anago/Projects/mission-control/scripts/sync-openclaw.mjs
+  node /Users/anago/Projects/mission-control/scripts/sync-mako.mjs
   echo "[$(date)] Sync complete."
 else
   echo "[$(date)] No pending sync request."

@@ -2,39 +2,62 @@
 
 import { GlassPanel } from "@/components/GlassPanel";
 import { Badge } from "@/components/ui/Badge";
-import { ArrowUp, ArrowDown, CheckCircle, XCircle, Clock, FileText } from "lucide-react";
+import { FileText } from "lucide-react";
 
 interface MakoTrade {
   _id: string;
   tradeId: string;
-  timestamp: number;
-  windowStart: number;
-  slug: string;
-  direction: string;
-  confidence: number;
-  score: number;
-  windowDelta: number;
-  tokenPrice: number;
-  outcome: string;
-  pnl: number;
-  bankrollAfter: number;
-  dryRun: boolean;
+  ts: number;
+  strategy: string;
+  eventId: string;
+  legAPlatform: string;
+  legASide: string;
+  legAPrice: number;
+  legAContracts: number;
+  legBPlatform?: string;
+  legBSide?: string;
+  legBPrice?: number;
+  legBContracts?: number;
+  expectedProfitCents?: number;
+  actualProfitCents?: number;
+  status: string;
 }
 
 interface TradeHistoryProps {
   trades: MakoTrade[] | null | undefined;
 }
 
-function formatTime(ts: number) {
-  const d = new Date(ts);
-  const now = Date.now();
-  const diff = now - ts;
-  const days = Math.floor(diff / 86400000);
+const MODULE_BADGES: Record<string, { badge: string; color: string }> = {
+  market_making: { badge: "A", color: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
+  cross_arb: { badge: "B", color: "bg-purple-500/20 text-purple-400 border-purple-500/30" },
+  info_lag: { badge: "C", color: "bg-amber-500/20 text-amber-400 border-amber-500/30" },
+  resolution_edge: { badge: "D", color: "bg-green-500/20 text-green-400 border-green-500/30" },
+};
 
-  if (days === 0) return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  if (days === 1) return "Yesterday";
+const STATUS_VARIANT: Record<string, "success" | "warning" | "error" | "neutral"> = {
+  open: "warning",
+  closed: "success",
+  partial_fill_abort: "error",
+  failed: "error",
+};
+
+function formatTime(ts: number): string {
+  const diff = Date.now() - ts;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
   if (days < 7) return `${days}d ago`;
-  return d.toLocaleDateString([], { month: "short", day: "numeric" });
+  return new Date(ts).toLocaleDateString([], { month: "short", day: "numeric" });
+}
+
+function truncateId(id: string): string {
+  if (id.startsWith("0x") && id.length > 14) {
+    return `${id.slice(0, 8)}...${id.slice(-4)}`;
+  }
+  return id.length > 20 ? `${id.slice(0, 17)}...` : id;
 }
 
 export function TradeHistory({ trades }: TradeHistoryProps) {
@@ -42,14 +65,14 @@ export function TradeHistory({ trades }: TradeHistoryProps) {
     return (
       <GlassPanel className="p-6">
         <h2 className="text-lg font-semibold text-white mb-1">Trade History</h2>
-        <p className="text-sm text-white/50 mb-6">Recent scalp trades</p>
+        <p className="text-sm text-white/50 mb-6">Recent dual-leg trades</p>
         <div className="text-center py-12">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-white/[0.04] rounded-full mb-4">
             <FileText className="w-8 h-8 text-white/30" />
           </div>
           <h3 className="text-lg font-medium text-white mb-2">No trades yet</h3>
           <p className="text-sm text-white/50 max-w-sm mx-auto">
-            Trades will appear here once the Mako scalper starts executing.
+            Trades will appear here once Mako v2 starts executing.
           </p>
         </div>
       </GlassPanel>
@@ -61,7 +84,7 @@ export function TradeHistory({ trades }: TradeHistoryProps) {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-lg font-semibold text-white">Trade History</h2>
-          <p className="text-sm text-white/50 mt-1">Last {trades.length} scalp trades</p>
+          <p className="text-sm text-white/50 mt-1">Last {trades.length} trades</p>
         </div>
       </div>
 
@@ -70,103 +93,72 @@ export function TradeHistory({ trades }: TradeHistoryProps) {
           <thead>
             <tr className="border-b border-white/10">
               <th className="text-left py-3 px-2 text-xs font-medium text-white/50">Time</th>
-              <th className="text-left py-3 px-2 text-xs font-medium text-white/50">Direction</th>
-              <th className="text-left py-3 px-2 text-xs font-medium text-white/50">Confidence</th>
-              <th className="text-right py-3 px-2 text-xs font-medium text-white/50">Wager</th>
-              <th className="text-right py-3 px-2 text-xs font-medium text-white/50">Return</th>
-              <th className="text-left py-3 px-2 text-xs font-medium text-white/50">Outcome</th>
-              <th className="text-right py-3 px-2 text-xs font-medium text-white/50">P&L</th>
-              <th className="text-right py-3 px-2 text-xs font-medium text-white/50">Bankroll</th>
+              <th className="text-left py-3 px-2 text-xs font-medium text-white/50">Module</th>
+              <th className="text-left py-3 px-2 text-xs font-medium text-white/50">Event</th>
+              <th className="text-left py-3 px-2 text-xs font-medium text-white/50">Legs</th>
+              <th className="text-right py-3 px-2 text-xs font-medium text-white/50">Contracts</th>
+              <th className="text-right py-3 px-2 text-xs font-medium text-white/50">Exp / Actual</th>
+              <th className="text-left py-3 px-2 text-xs font-medium text-white/50">Status</th>
             </tr>
           </thead>
           <tbody>
             {trades.map((trade) => {
-              const isUp = trade.direction === "up";
-              const isWin = trade.outcome === "win";
-              const isPending = trade.outcome === "pending";
+              const mod = MODULE_BADGES[trade.strategy] ?? {
+                badge: "?",
+                color: "bg-gray-500/20 text-gray-400 border-gray-500/30",
+              };
+
+              const legsSummary = trade.legBPrice
+                ? `${(trade.legAPrice * 100).toFixed(0)}\u00a2 ${trade.legAPlatform} ${trade.legASide} + ${(trade.legBPrice * 100).toFixed(0)}\u00a2 ${trade.legBPlatform} ${trade.legBSide}`
+                : `${(trade.legAPrice * 100).toFixed(0)}\u00a2 ${trade.legAPlatform} ${trade.legASide}`;
+
+              const expCents = trade.expectedProfitCents ?? 0;
+              const actCents = trade.actualProfitCents;
+              const statusVariant = STATUS_VARIANT[trade.status] ?? "neutral";
+              const statusLabel = trade.status === "partial_fill_abort" ? "Aborted" : trade.status;
 
               return (
                 <tr key={trade._id} className="border-b border-white/5 hover:bg-white/[0.02]">
                   <td className="py-3 px-2">
-                    <p className="text-sm text-white/90">{formatTime(trade.timestamp)}</p>
+                    <span className="text-sm text-white/90">{formatTime(trade.ts)}</span>
                   </td>
                   <td className="py-3 px-2">
-                    <div className="flex items-center gap-1.5">
-                      {isUp ? (
-                        <ArrowUp className="w-4 h-4 text-green-400" />
-                      ) : (
-                        <ArrowDown className="w-4 h-4 text-red-400" />
-                      )}
-                      <span className={`text-sm font-medium ${isUp ? "text-green-400" : "text-red-400"}`}>
-                        {trade.direction.toUpperCase()}
+                    <span
+                      className={`inline-flex items-center justify-center w-6 h-6 rounded text-xs font-bold border ${mod.color}`}
+                    >
+                      {mod.badge}
+                    </span>
+                  </td>
+                  <td className="py-3 px-2">
+                    <span className="text-sm text-white/70 font-mono">
+                      {truncateId(trade.eventId)}
+                    </span>
+                  </td>
+                  <td className="py-3 px-2">
+                    <span className="text-xs text-white/60">{legsSummary}</span>
+                  </td>
+                  <td className="py-3 px-2 text-right">
+                    <span className="text-sm text-white/70">{trade.legAContracts}</span>
+                  </td>
+                  <td className="py-3 px-2 text-right">
+                    <span className="text-xs text-white/50">
+                      {expCents > 0 ? `${(expCents / 100).toFixed(2)}` : "--"}
+                    </span>
+                    <span className="text-white/20 mx-1">/</span>
+                    {actCents != null ? (
+                      <span
+                        className={`text-sm font-medium ${actCents >= 0 ? "text-green-400" : "text-red-400"}`}
+                      >
+                        {actCents >= 0 ? "+" : ""}${(actCents / 100).toFixed(2)}
                       </span>
-                    </div>
-                  </td>
-                  <td className="py-3 px-2">
-                    <div className="flex items-center gap-2">
-                      <div className="w-16 h-1.5 bg-white/10 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-amber-400 rounded-full"
-                          style={{ width: `${Math.min(trade.confidence * 100, 100)}%` }}
-                        />
-                      </div>
-                      <span className="text-xs text-white/50">
-                        {(trade.confidence * 100).toFixed(0)}%
-                      </span>
-                    </div>
-                  </td>
-                  {(() => {
-                    // For resolved trades: derive cost from pnl + tokenPrice
-                    // For pending trades: estimate from tokenPrice tier ($10 if >=0.97, else $5)
-                    let cost: number;
-                    if (!isPending && trade.pnl !== 0 && trade.tokenPrice > 0) {
-                      cost = trade.pnl / ((1 / trade.tokenPrice) - 1);
-                    } else {
-                      cost = trade.tokenPrice >= 0.97 ? 10 : 5;
-                    }
-                    const pctReturn = !isPending && cost > 0 ? (trade.pnl / cost) * 100 : 0;
-                    return (
-                      <>
-                        <td className="py-3 px-2 text-right">
-                          <span className="text-sm text-white/70">
-                            ${Math.abs(cost).toFixed(2)}
-                          </span>
-                        </td>
-                        <td className="py-3 px-2 text-right">
-                          <span className={`text-sm ${trade.pnl >= 0 ? "text-green-400" : "text-red-400"}`}>
-                            {isPending ? "—" : `${trade.pnl >= 0 ? "+" : ""}${pctReturn.toFixed(0)}%`}
-                          </span>
-                        </td>
-                      </>
-                    );
-                  })()}
-                  <td className="py-3 px-2">
-                    {isPending ? (
-                      <Badge variant="warning" size="sm">
-                        <Clock className="w-3 h-3 mr-1" />
-                        Pending
-                      </Badge>
-                    ) : isWin ? (
-                      <Badge variant="success" size="sm">
-                        <CheckCircle className="w-3 h-3 mr-1" />
-                        Win
-                      </Badge>
                     ) : (
-                      <Badge variant="error" size="sm">
-                        <XCircle className="w-3 h-3 mr-1" />
-                        Loss
-                      </Badge>
+                      <span className="text-xs text-white/30">--</span>
                     )}
                   </td>
-                  <td className="py-3 px-2 text-right">
-                    <span className={`text-sm font-medium ${trade.pnl >= 0 ? "text-green-400" : "text-red-400"}`}>
-                      {trade.pnl >= 0 ? "+" : ""}${trade.pnl.toFixed(2)}
-                    </span>
-                  </td>
-                  <td className="py-3 px-2 text-right">
-                    <span className="text-sm text-white/70">
-                      ${trade.bankrollAfter.toFixed(2)}
-                    </span>
+                  <td className="py-3 px-2">
+                    <Badge variant={statusVariant} size="sm">
+                      {statusLabel}
+                    </Badge>
                   </td>
                 </tr>
               );
