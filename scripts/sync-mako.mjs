@@ -43,7 +43,7 @@ function loadEnv() {
 }
 loadEnv();
 
-const SITE_URL = process.env.CONVEX_SITE_URL || process.env.NEXT_PUBLIC_CONVEX_SITE_URL || "https://first-ram-850.convex.site";
+const SITE_URL = process.env.CONVEX_SITE_URL || process.env.NEXT_PUBLIC_CONVEX_SITE_URL || "https://abundant-bullfrog-757.convex.site";
 const SYNC_SECRET = process.env.SYNC_SECRET;
 
 if (!SYNC_SECRET) {

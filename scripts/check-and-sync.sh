@@ -2,7 +2,7 @@
 # check-and-sync.sh — triggered every 2 min by cron
 # Checks Convex for a pending "Sync Now" request; fires sync if found.
 
-CONVEX_URL="https://first-ram-850.convex.site"
+CONVEX_URL="https://abundant-bullfrog-757.convex.site"
 
 result=$(curl -s --max-time 5 "$CONVEX_URL/api/check-pending-sync" 2>/dev/null)
 
