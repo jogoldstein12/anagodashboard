@@ -34,7 +34,8 @@ export function CalendarGrid() {
 
   const tasks = useQuery(api.scheduledTasks.list, {}) || [];
 
-  // For recurring tasks, generate occurrences for the current week
+  // For recurring tasks, generate occurrences for the current week.
+  // For one-time "at" tasks, show them on their specific day if it falls in the current week.
   const weekEvents = useMemo(() => {
     if (!tasks) return [];
 
@@ -48,7 +49,27 @@ export function CalendarGrid() {
     for (const task of tasks as any[]) {
       if (task.status !== "active") continue;
 
-      // Parse cron to get day-of-week and time
+      // ── One-time "at" tasks ──────────────────────────────────────────────
+      // schedule === "at" means it fires once at a specific timestamp (nextRun)
+      if (task.schedule === "at") {
+        if (!task.nextRun) continue;
+        const runDate = new Date(task.nextRun);
+        // Only show if it falls within the current week view
+        if (runDate >= weekStart && runDate <= weekEnd) {
+          const dayMatch = days.find(d => isSameDay(d, runDate));
+          if (dayMatch) {
+            events.push({
+              task,
+              day: dayMatch,
+              hour: runDate.getHours(),
+              minute: runDate.getMinutes(),
+            });
+          }
+        }
+        continue;
+      }
+
+      // ── Recurring cron tasks ─────────────────────────────────────────────
       const parts = task.cronExpr.split(" ");
       if (parts.length < 5) continue;
 
@@ -76,25 +97,20 @@ export function CalendarGrid() {
       if (hourPart === "*") {
         hours = [9]; // Default display hour for always-running tasks
       } else if (hourPart.startsWith("*/")) {
-        // e.g. */2 — every 2 hours
         const interval = parseInt(hourPart.replace("*/", ""));
         for (let h = 0; h < 24; h += interval) hours.push(h);
       } else if (hourPart.includes("-")) {
-        // e.g. 8-15
         const [start, end] = hourPart.split("-").map(Number);
-        // For ranges, show all hours in range
         for (let h = start; h <= end; h++) hours.push(h);
       } else {
         hours = [parseInt(hourPart)];
       }
 
-      // Handle minute intervals within hour ranges (e.g. */30 8-15 = every 30min from 8-15)
       let minutes: number[] = [minute];
       if (minutePart.startsWith("*/")) {
         const minInterval = parseInt(minutePart.replace("*/", ""));
         minutes = [];
         for (let m = 0; m < 60; m += minInterval) minutes.push(m);
-        // If hour is a range, expand hours
         if (hourPart.includes("-")) {
           const [start, end] = hourPart.split("-").map(Number);
           hours = [];
@@ -107,7 +123,6 @@ export function CalendarGrid() {
         const jsDay = day.getDay();
         if (runDays.includes(jsDay) || (jsDay === 0 && runDays.includes(7))) {
           for (const h of hours) {
-            // For frequent tasks (heartbeat), only show first occurrence per hour
             events.push({ task, day, hour: h, minute: minutes[0] });
           }
         }
@@ -115,7 +130,7 @@ export function CalendarGrid() {
     }
 
     return events;
-  }, [tasks, days]);
+  }, [tasks, days, weekStart, weekEnd]);
 
   const getEventsForDayHour = (day: Date, hour: number) => {
     return weekEvents.filter(
