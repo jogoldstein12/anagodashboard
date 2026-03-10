@@ -810,19 +810,48 @@ async function syncMako(state) {
   const losses = stats?.losses || 0;
   const winRate = settledTrades > 0 ? (wins / settledTrades) * 100 : 0;
 
+  // ── Daily P&L from DB ─────────────────────────────────────────
+  let dailyPnl = 0;
+  let openPositionCount = 0;
+  try {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const dayStart = Math.floor(new Date(todayStr + "T00:00:00Z").getTime() / 1000);
+    const dailyQuery = `SELECT SUM(actual_profit_cents)/100.0 as daily_pnl, COUNT(*) as open_count FROM trades WHERE ts >= ${dayStart} AND status='open';`;
+    const dailyRaw = run(`sqlite3 -json "${DB_PATH}" "${dailyQuery}"`);
+    const dailyArr = parseJson(dailyRaw);
+    const daily = dailyArr?.[0];
+    dailyPnl = daily?.daily_pnl || 0;
+    openPositionCount = daily?.open_count || 0;
+  } catch {}
+
+  // ── Peak bankroll + drawdown from risk_state ───────────────
+  let peakBankroll = reportedBankroll;
+  let drawdownPct = 0;
+  try {
+    const riskRaw = run(`cat "${RISK_STATE}" 2>/dev/null || true`);
+    const risk = riskRaw ? JSON.parse(riskRaw) : null;
+    if (risk) {
+      peakBankroll = risk.peak_bankroll || reportedBankroll;
+      if (peakBankroll > 0) {
+        drawdownPct = Math.max(0, ((peakBankroll - reportedBankroll) / peakBankroll) * 100);
+      }
+      dailyPnl = risk.daily_pnl ?? dailyPnl;
+    }
+  } catch {}
+
   await post("/api/sync/mako-status", {
     status: makoStatus,
-    mode: makoMode,
+    polyBalance: liquidUsdc,
+    kalshiBalance: 0,          // Mako trades on Poly only
     bankroll: reportedBankroll,
-    walletUsdc: liquidUsdc,
-    positionValue,
-    totalTrades,
-    settledTrades,
-    wins,
-    losses,
-    winRate: Math.round(winRate * 10) / 10,
+    peakBankroll,
+    drawdownPct: Math.round(drawdownPct * 10) / 10,
+    dailyPnl,
     totalPnl: stats?.total_pnl || 0,
-    lastTradeTs: stats?.last_trade_ts ? stats.last_trade_ts * 1000 : null,
+    totalTrades,
+    openPositions: openPositionCount,
+    winRate: Math.round(winRate * 10) / 10,
+    lastTradeAt: stats?.last_trade_ts ? stats.last_trade_ts * 1000 : undefined,
   });
 
   console.log(`  📊 Mako v2: ${makoStatus} | bankroll=$${reportedBankroll.toFixed(2)} | trades=${totalTrades} | winRate=${winRate.toFixed(1)}%`);
@@ -835,8 +864,8 @@ async function syncUni(state) {
 
   const uniDir = resolve(process.env.HOME, ".openclaw/workspace/agents/uni/phase1");
   
-  // Default values
-  let kalshiBalance = 518.76;
+  // Default values — will be overridden by live Kalshi balance fetch below
+  let kalshiBalance = 0;
   let winRate = 0;
   let totalTrades = 0;
   let totalPnl = 0;
@@ -916,6 +945,26 @@ async function syncUni(state) {
       console.log(`  ⚠️  Error reading trade_log.csv: ${err.message}`);
     }
   }
+
+  // Fetch live Kalshi portfolio balance via Python (RSA-PSS auth)
+  try {
+    const balScript = `
+import sys, os
+sys.path.insert(0, '/Users/anago/.openclaw/workspace/projects/polymarket/mako_v2')
+sys.path.insert(0, '/Users/anago/.openclaw/workspace/agents/uni/data/kalshi_raw/code/kalshi_scraping')
+os.chdir('/Users/anago/.openclaw/workspace/projects/polymarket/mako_v2')
+from clients.kalshi import KalshiClient
+import json
+k = KalshiClient()
+bal = k.get_balance()
+print(json.dumps({"balance": bal}))
+`.trim();
+    const balRaw = run(`/opt/homebrew/bin/python3 -c "${balScript.replace(/"/g, '\\"').replace(/\n/g, '; ')}" 2>/dev/null`);
+    if (balRaw) {
+      const parsed = JSON.parse(balRaw);
+      if (parsed?.balance != null) kalshiBalance = parsed.balance;
+    }
+  } catch {}
 
   // Fetch live mid-prices from Kalshi for open positions
   async function fetchKalshiMid(ticker) {
