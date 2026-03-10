@@ -695,7 +695,7 @@ async function syncMako(state) {
     if (pidRaw) {
       const alive = run(`ps -p ${pidRaw} -o pid= 2>/dev/null || true`)?.trim();
       if (alive) {
-        makoStatus = "active";
+        makoStatus = "live";
         const procArgs = run(`ps -p ${pidRaw} -o args= 2>/dev/null || true`)?.trim() || "";
         makoMode = procArgs.includes("--dry-run") ? "dry-run" : "live";
       } else {
