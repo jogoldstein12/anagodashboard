@@ -448,6 +448,19 @@ http.route({
   }),
 });
 
+// POST /api/sync/purge-phantom-trades — delete mm_quote/mm_fill phantom rows, keep real cross_arb
+http.route({
+  path: "/api/sync/purge-phantom-trades",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    if (!checkAuth(request)) {
+      return jsonResponse({ error: "Unauthorized" }, 401);
+    }
+    const result = await ctx.runMutation(internal.mako.purgePhantomTrades, {});
+    return jsonResponse({ ok: true, ...result });
+  }),
+});
+
 // POST /api/sync/fulfill-sync-request — called at end of every sync run
 http.route({
   path: "/api/sync/fulfill-sync-request",

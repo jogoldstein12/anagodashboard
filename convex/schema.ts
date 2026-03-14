@@ -210,7 +210,8 @@ export default defineSchema({
     date: v.string(),
     trades: v.number(),
     wins: v.number(),
-    pnlCents: v.number(),
+    pnlCents: v.optional(v.number()),
+    pnl: v.optional(v.number()),
     bankrollClose: v.number(),
     timestamp: v.number(),
   })

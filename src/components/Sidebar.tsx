@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { Activity, Calendar, Search, Users, Network, ListTodo, DollarSign, Brain, Bell, Settings, Inbox, Menu, X, TrendingUp, ClipboardList, BookOpen } from "lucide-react";
+import { Activity, Calendar, Search, Users, Network, ListTodo, DollarSign, Brain, Bell, Settings, Inbox, Menu, X, TrendingUp, ClipboardList, BookOpen, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getAgentConfig } from "@/lib/constants";
 import { StatusDot } from "./StatusDot";
@@ -17,6 +17,7 @@ const NAV_ITEMS = [
   { href: "/agents", label: "Agents", icon: Users },
   { href: "/mako", label: "Mako", icon: DollarSign },
   { href: "/uni", label: "Uni", icon: TrendingUp },
+  { href: "/tennis", label: "Tennis", icon: Target },
   { href: "/kb", label: "Knowledge Base", icon: BookOpen },
   { href: "/swarm", label: "Swarm", icon: Network },
   { href: "/calendar", label: "Calendar", icon: Calendar },

@@ -117,6 +117,28 @@ export const syncMakoRiskEvent = internalMutation({
   },
 });
 
+export const purgePhantomTrades = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    // Delete everything that isn't a real cross_arb trade.
+    // The only real trade is OKC cross_arb (event_id: nba-2026-okc).
+    const trades = await ctx.db.query("mako_trades").collect();
+    let deleted = 0;
+    for (const t of trades) {
+      const isRealCrossArb =
+        t.strategy === "cross_arb" && t.event_id === "nba-2026-okc";
+      if (!isRealCrossArb) {
+        await ctx.db.delete(t._id);
+        deleted++;
+      }
+    }
+    // Also nuke all risk events (all were drawdown halt spam)
+    const events = await ctx.db.query("mako_risk_events").collect();
+    for (const e of events) await ctx.db.delete(e._id);
+    return { deletedTrades: deleted, deletedRiskEvents: events.length };
+  },
+});
+
 export const clearMakoHistory = internalMutation({
   args: {},
   handler: async (ctx) => {
