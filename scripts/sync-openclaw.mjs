@@ -281,20 +281,13 @@ async function syncAgents(sessions) {
     // Special Mako detection — runs as standalone process, check PID file
     if (agent.agentId === "mako") {
       try {
-        const pidFile = "/Users/anago/.openclaw/workspace/projects/polymarket/mako_v2/logs/mako_v2.pid";
-        const makoProc = run(`cat ${pidFile} 2>/dev/null | xargs -I{} ps -p {} -o pid= 2>/dev/null || true`).trim();
-        if (makoProc) {
-          status = "active";
-          // Check log recency
-          try {
-            const logPath = "/Users/anago/.openclaw/workspace/projects/polymarket/mako_v2/logs/mako_v2.log";
-            const logStat = run(`stat -f '%m' ${logPath} 2>/dev/null || true`).trim();
-            if (logStat) {
-              const logAge = Date.now() - parseInt(logStat) * 1000;
-              status = logAge < 300000 ? "active" : "idle";
-            }
-          } catch {}
-        }
+        // Detect Mako by log file recency (process runs as bare "main.py")
+        try {
+          const logPath = "/Users/anago/.openclaw/workspace/projects/polymarket/mako_v2/logs/mako_v2.log";
+          const logStat = run(`stat -f '%m' ${logPath} 2>/dev/null || echo 0`).trim();
+          const logAge = Date.now() - parseInt(logStat) * 1000;
+          status = logAge < 120000 ? "active" : "idle"; // active if log written in last 2 min
+        } catch {}
       } catch {}
     }
 
