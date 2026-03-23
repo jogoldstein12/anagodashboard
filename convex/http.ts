@@ -282,6 +282,8 @@ http.route({
       openPositions: body.openPositions,
       winRate: body.winRate,
       lastTradeAt: body.lastTradeAt,
+      lastCrashAt: body.lastCrashAt,
+      lastCrashReason: body.lastCrashReason,
     });
 
     return jsonResponse({ ok: true });
@@ -397,6 +399,12 @@ http.route({
       totalPnl: body.totalPnl,
       regime: body.regime,
       signalSummary: body.signalSummary,
+      openPositionCount: body.openPositionCount,
+      totalDeployed: body.totalDeployed,
+      nextResolution: body.nextResolution,
+      nowcastCpiMom: body.nowcastCpiMom,
+      macroSignals: body.macroSignals,
+      shockTriggerStatus: body.shockTriggerStatus,
     });
 
     return jsonResponse({ ok: true });

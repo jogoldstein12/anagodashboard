@@ -18,6 +18,8 @@ export const syncMakoStatus = internalMutation({
     openPositions: v.number(),
     winRate: v.number(),
     lastTradeAt: v.optional(v.number()),
+    lastCrashAt: v.optional(v.number()),
+    lastCrashReason: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const existing = await ctx.db.query("mako_status").first();

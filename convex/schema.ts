@@ -174,6 +174,8 @@ export default defineSchema({
     winRate: v.number(),
     lastSyncAt: v.number(),
     lastTradeAt: v.optional(v.number()),
+    lastCrashAt: v.optional(v.number()),
+    lastCrashReason: v.optional(v.string()),
   })
     .index("by_lastSync", ["lastSyncAt"]),
 
@@ -284,6 +286,18 @@ export default defineSchema({
     lastUpdated: v.number(),
     regime: v.optional(v.string()),         // "HOT" | "FLAT" | "COOL"
     signalSummary: v.optional(v.string()),
+    openPositionCount: v.optional(v.number()),
+    totalDeployed: v.optional(v.number()),
+    nextResolution: v.optional(v.string()),
+    nowcastCpiMom: v.optional(v.number()),
+    macroSignals: v.optional(v.object({
+      wti: v.optional(v.number()),
+      gasoline: v.optional(v.number()),
+      breakeven5yr: v.optional(v.number()),
+      clevelandFedNowcast: v.optional(v.number()),
+      updatedAt: v.optional(v.number()),
+    })),
+    shockTriggerStatus: v.optional(v.string()),
   })
     .index("by_lastUpdated", ["lastUpdated"]),
 

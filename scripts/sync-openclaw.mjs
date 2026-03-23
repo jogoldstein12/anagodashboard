@@ -690,6 +690,8 @@ async function syncMako(state) {
   // ── Process status ──────────────────────────────────────────
   let makoStatus = "offline";
   let makoMode = "live";
+  let lastCrashAt = undefined;
+  let lastCrashReason = undefined;
   try {
     const pidRaw = run(`cat "${PID_FILE}" 2>/dev/null || true`)?.trim();
     if (pidRaw) {
@@ -704,6 +706,28 @@ async function syncMako(state) {
         if (logStat) {
           const logAge = Date.now() - parseInt(logStat) * 1000;
           makoStatus = logAge < 300000 ? "idle" : "offline";
+        }
+      }
+    }
+  } catch {}
+
+  // ── Detect SIGTERM crashes from log ────────────────────────
+  try {
+    const sigLines = run(`grep -i "SIGTERM\\|signal 15\\|killed\\|terminated" "${LOG_FILE}" 2>/dev/null | tail -5 || true`)?.trim();
+    if (sigLines) {
+      const lines = sigLines.split("\n").filter(Boolean);
+      const lastLine = lines[lines.length - 1] || "";
+      // Try to extract timestamp from log line (ISO format or epoch)
+      const tsMatch = lastLine.match(/(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2})/);
+      if (tsMatch) {
+        lastCrashAt = new Date(tsMatch[1]).getTime();
+        lastCrashReason = "SIGTERM";
+      } else {
+        // Use log file modification time as fallback
+        const logStat = run(`stat -f '%m' "${LOG_FILE}" 2>/dev/null || true`)?.trim();
+        if (logStat && makoStatus === "offline") {
+          lastCrashAt = parseInt(logStat) * 1000;
+          lastCrashReason = "SIGTERM";
         }
       }
     }
@@ -852,6 +876,8 @@ async function syncMako(state) {
     openPositions: openPositionCount,
     winRate: Math.round(winRate * 10) / 10,
     lastTradeAt: stats?.last_trade_ts ? stats.last_trade_ts * 1000 : undefined,
+    ...(lastCrashAt && { lastCrashAt }),
+    ...(lastCrashReason && { lastCrashReason }),
   });
 
   console.log(`  📊 Mako v2: ${makoStatus} | bankroll=$${reportedBankroll.toFixed(2)} | trades=${totalTrades} | winRate=${winRate.toFixed(1)}%`);
@@ -1000,6 +1026,39 @@ print(json.dumps({"balance": bal}))
     ? Math.round((firstOpenMid - firstOpen.entryPrice) / 100 * firstOpen.quantity * 100) / 100
     : null;
 
+  // ── Compute aggregate open position stats ────────────────────
+  const totalDeployed = openPositions.reduce((sum, p) => sum + (p.cost || 0), 0);
+  const nextResolution = openPositions.length > 0
+    ? openPositions.map(p => p.exitDate).filter(Boolean).sort()[0] || null
+    : null;
+
+  // ── Read macro signals from state/macro_signals.json ────────
+  let macroSignals = undefined;
+  let nowcastCpiMom = undefined;
+  const macroSignalsPath = resolve(process.env.HOME, ".openclaw/workspace/agents/uni/state/macro_signals.json");
+  try {
+    if (existsSync(macroSignalsPath)) {
+      const macroRaw = JSON.parse(readFileSync(macroSignalsPath, "utf-8"));
+      macroSignals = {
+        wti: macroRaw.wti ?? macroRaw.WTI ?? undefined,
+        gasoline: macroRaw.gasoline ?? macroRaw.Gasoline ?? undefined,
+        breakeven5yr: macroRaw.breakeven_5yr ?? macroRaw.breakeven5yr ?? undefined,
+        clevelandFedNowcast: macroRaw.cleveland_fed_nowcast ?? macroRaw.nowcast ?? undefined,
+        updatedAt: macroRaw.updated_at ? new Date(macroRaw.updated_at).getTime() : Date.now(),
+      };
+      nowcastCpiMom = macroSignals.clevelandFedNowcast;
+    }
+  } catch (err) {
+    console.log(`  ⚠️  Error reading macro_signals.json: ${err.message}`);
+  }
+
+  // ── Shock trigger status ──────────────────────────────────────
+  let shockTriggerStatus = undefined;
+  const shockScriptPath = resolve(process.env.HOME, ".openclaw/workspace/agents/uni/scripts/shock_trigger_check.py");
+  if (existsSync(shockScriptPath)) {
+    shockTriggerStatus = "Daily shock check active — next run 10:30 AM ET";
+  }
+
   // Sync status to Convex — strip undefined/null optional fields (Convex rejects null for optional validators)
   const uniStatusPayload = {
     status,
@@ -1022,6 +1081,13 @@ print(json.dumps({"balance": bal}))
     ...(!firstOpen && pendingTrade?.bet_size      && { betSize: pendingTrade.bet_size }),
     ...(!firstOpen && pendingTrade?.signal_summary && { signalSummary: pendingTrade.signal_summary }),
     ...(regime && { regime }),
+    // New fields
+    openPositionCount: openPositions.length,
+    totalDeployed: Math.round(totalDeployed * 100) / 100,
+    ...(nextResolution && { nextResolution }),
+    ...(nowcastCpiMom !== undefined && { nowcastCpiMom }),
+    ...(macroSignals && { macroSignals }),
+    ...(shockTriggerStatus && { shockTriggerStatus }),
   };
   await post("/api/sync/uni-status", uniStatusPayload);
 
