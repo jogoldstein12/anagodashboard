@@ -698,8 +698,15 @@ async function syncMako(state) {
         const logStat = run(`stat -f '%m' "${LOG_FILE}" 2>/dev/null || true`)?.trim();
         if (logStat) {
           const logAge = Date.now() - parseInt(logStat) * 1000;
-          makoStatus = logAge < 300000 ? "idle" : "offline";
+          makoStatus = logAge < 120000 ? "live" : "offline";
         }
+      }
+    } else {
+      // No PID file (nohup launch) — detect by log recency
+      const logStat = run(`stat -f '%m' "${LOG_FILE}" 2>/dev/null || echo 0`)?.trim();
+      if (logStat) {
+        const logAge = Date.now() - parseInt(logStat) * 1000;
+        makoStatus = logAge < 120000 ? "live" : "offline";
       }
     }
   } catch {}
