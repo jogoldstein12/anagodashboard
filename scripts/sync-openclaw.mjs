@@ -1126,9 +1126,11 @@ print(json.dumps({"balance": bal}))
         const exitPrice  = parseFloat(cols[13]) || 0;
         const pnl        = parseFloat(cols[14]) || 0;
 
+        const isClosed = ["closed", "resolved", "executed"].includes(rowStatus);
         const outcome = rowStatus === "open" ? "pending"
-                      : rowStatus === "closed" && exitPrice > 0 && exitPrice >= entryPrice ? "win"
-                      : rowStatus === "closed" ? "loss"
+                      : isClosed && pnl > 0 ? "win"
+                      : isClosed && pnl < 0 ? "loss"
+                      : isClosed ? "loss"  // break-even or unknown → loss
                       : "pending";
 
         if (tradeId && ticker) {
