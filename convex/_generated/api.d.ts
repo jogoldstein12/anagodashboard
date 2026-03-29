@@ -13,6 +13,7 @@ import type * as agents from "../agents.js";
 import type * as approvals from "../approvals.js";
 import type * as costEntries from "../costEntries.js";
 import type * as documents from "../documents.js";
+import type * as hamachi from "../hamachi.js";
 import type * as http from "../http.js";
 import type * as kb from "../kb.js";
 import type * as mako from "../mako.js";
@@ -37,6 +38,7 @@ declare const fullApi: ApiFromModules<{
   approvals: typeof approvals;
   costEntries: typeof costEntries;
   documents: typeof documents;
+  hamachi: typeof hamachi;
   http: typeof http;
   kb: typeof kb;
   mako: typeof mako;
