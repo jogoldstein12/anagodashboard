@@ -141,11 +141,17 @@ async function syncHamachiStatus() {
   const running = isScannerActive();
   const trades = parseCsv(PAPER_TRADES_CSV);
 
-  // Calculate trade stats
-  const completedTrades = trades.filter((t) => t.outcome && t.outcome !== "");
-  const wins = completedTrades.filter(
-    (t) => t.outcome === "win" || parseFloat(t.pnl_net_maker || "0") > 0
-  ).length;
+  // CSV column: settlement_outcome = "YES" | "NO" | "" (empty = open/pending)
+  // CSV column: settled = "True" | "False"
+  const completedTrades = trades.filter((t) => t.settlement_outcome && t.settlement_outcome !== "");
+
+  function isWin(t) {
+    const dir = t.direction; // "BUY_YES" or "BUY_NO"
+    const outcome = t.settlement_outcome; // "YES" or "NO"
+    return (dir === "BUY_YES" && outcome === "YES") || (dir === "BUY_NO" && outcome === "NO");
+  }
+
+  const wins = completedTrades.filter(isWin).length;
   const totalTrades = completedTrades.length;
   const winRate = totalTrades > 0 ? (wins / totalTrades) * 100 : 0;
 
@@ -161,11 +167,9 @@ async function syncHamachiStatus() {
     ? new Date(lastTrade.timestamp).getTime()
     : undefined;
 
-  // Today's P&L
+  // Today's P&L — use contract date, not timestamp
   const today = new Date().toISOString().split("T")[0];
-  const todayTrades = completedTrades.filter(
-    (t) => t.timestamp && t.timestamp.startsWith(today)
-  );
+  const todayTrades = completedTrades.filter((t) => t.date === today);
   const dailyPnl = todayTrades.reduce(
     (sum, t) => sum + parseFloat(t.pnl_net_maker || "0"),
     0
@@ -215,19 +219,27 @@ async function syncHamachiTrades() {
     const t = recent[i];
     const ts = t.timestamp ? new Date(t.timestamp).getTime() : Date.now();
 
+    // Determine outcome string: "win" | "loss" | undefined (open)
+    let outcome;
+    if (t.settlement_outcome) {
+      const dir = t.direction;
+      const so = t.settlement_outcome;
+      outcome = (dir === "BUY_YES" && so === "YES") || (dir === "BUY_NO" && so === "NO") ? "win" : "loss";
+    }
+
     await post("/api/sync/hamachi-trade", {
-      tradeId: `${t.city}-${t.date}-${t.ticker}-${t.strike}-${i}`,
+      tradeId: `${t.ticker}-${t.direction}`,
       ts,
       city: t.city || "",
       ticker: t.ticker || "",
       strike: parseFloat(t.strike) || 0,
       direction: t.direction || "",
-      entryPrice: parseFloat(t.entry_price) || 0,
-      exitPrice: t.exit_price ? parseFloat(t.exit_price) : undefined,
+      entryPrice: parseFloat(t.entry_price_maker) || 0,
+      exitPrice: undefined, // Hamachi doesn't have explicit exit price
       modelProb: parseFloat(t.model_prob) || 0,
-      outcome: t.outcome || undefined,
-      pnlNet: t.pnl_net_maker ? parseFloat(t.pnl_net_maker) : undefined,
-      live: t.live === "True" || t.live === "true" || t.live === "1",
+      outcome,
+      pnlNet: t.pnl_net_maker !== "" && t.pnl_net_maker != null ? parseFloat(t.pnl_net_maker) : undefined,
+      live: t.settled === "True",
       contractDate: t.date || "",
     });
   }
@@ -237,18 +249,22 @@ async function syncHamachiPnl() {
   console.log("📅 Syncing Hamachi daily P&L...");
 
   const trades = parseCsv(PAPER_TRADES_CSV);
-  const completedTrades = trades.filter((t) => t.outcome && t.outcome !== "");
+  const completedTrades = trades.filter((t) => t.settlement_outcome && t.settlement_outcome !== "");
 
-  // Group by date
+  function isWinPnl(t) {
+    const dir = t.direction;
+    const so = t.settlement_outcome;
+    return (dir === "BUY_YES" && so === "YES") || (dir === "BUY_NO" && so === "NO");
+  }
+
+  // Group by contract date
   const byDate = {};
   for (const t of completedTrades) {
-    const date = t.date || (t.timestamp ? t.timestamp.split("T")[0] : null);
+    const date = t.date;
     if (!date) continue;
     if (!byDate[date]) byDate[date] = { trades: 0, wins: 0, pnl: 0 };
     byDate[date].trades++;
-    if (t.outcome === "win" || parseFloat(t.pnl_net_maker || "0") > 0) {
-      byDate[date].wins++;
-    }
+    if (isWinPnl(t)) byDate[date].wins++;
     byDate[date].pnl += parseFloat(t.pnl_net_maker || "0");
   }
 

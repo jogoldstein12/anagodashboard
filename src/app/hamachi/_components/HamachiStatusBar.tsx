@@ -42,7 +42,7 @@ export function HamachiStatusBar({ status }: HamachiStatusBarProps) {
         </div>
       )}
 
-      <GlassPanel className="px-6 py-3 flex items-center justify-between">
+      <GlassPanel className="px-4 md:px-6 py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div className="flex items-center gap-3">
           <span className="text-lg">{cfg.emoji}</span>
           <span className={`font-semibold ${cfg.color}`}>{cfg.label}</span>
@@ -52,21 +52,21 @@ export function HamachiStatusBar({ status }: HamachiStatusBarProps) {
           </span>
         </div>
 
-        <div className="flex items-center gap-6 text-sm">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
           <div className="flex items-center gap-2">
             <span className="text-white/40">Bankroll</span>
             <span className={`text-white font-medium ${isStale ? "opacity-50" : ""}`}>
               ${(s?.bankroll ?? 0).toFixed(2)}
             </span>
           </div>
-          <span className="text-white/20">|</span>
+          <span className="text-white/20 hidden md:inline">|</span>
           <div className="flex items-center gap-2">
             <span className="text-white/40">Deployed</span>
             <span className={`text-white font-medium ${isStale ? "opacity-50" : ""}`}>
               ${(s?.deployed ?? 0).toFixed(2)}
             </span>
           </div>
-          <span className="text-white/20">|</span>
+          <span className="text-white/20 hidden md:inline">|</span>
           <div className="flex items-center gap-2">
             <span className="text-white/40">Available</span>
             <span className={`text-white font-medium ${isStale ? "opacity-50" : ""}`}>

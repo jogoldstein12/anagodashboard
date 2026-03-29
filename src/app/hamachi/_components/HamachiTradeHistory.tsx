@@ -28,7 +28,7 @@ interface HamachiTradeHistoryProps {
 const OUTCOME_VARIANT: Record<string, "success" | "warning" | "error" | "neutral"> = {
   win: "success",
   loss: "error",
-  pending: "warning",
+  open: "warning",
 };
 
 function formatTime(ts: number): string {
@@ -88,8 +88,11 @@ export function HamachiTradeHistory({ trades }: HamachiTradeHistoryProps) {
           </thead>
           <tbody>
             {trades.map((trade) => {
-              const outcomeLabel = trade.outcome || "pending";
+              const outcomeLabel = trade.outcome || "open";
               const variant = OUTCOME_VARIANT[outcomeLabel] ?? "neutral";
+              // direction is "BUY_YES" or "BUY_NO" — display cleanly
+              const dirLabel = trade.direction === "BUY_YES" ? "YES" : trade.direction === "BUY_NO" ? "NO" : trade.direction;
+              const dirColor = trade.direction === "BUY_YES" ? "text-green-400" : "text-red-400";
 
               return (
                 <tr key={trade._id} className="border-b border-white/5 hover:bg-white/[0.02]">
@@ -103,8 +106,8 @@ export function HamachiTradeHistory({ trades }: HamachiTradeHistoryProps) {
                     <span className="text-sm text-white/60 font-mono">{trade.contractDate}</span>
                   </td>
                   <td className="py-3 px-2">
-                    <span className={`text-sm font-medium ${trade.direction === "YES" ? "text-green-400" : "text-red-400"}`}>
-                      {trade.direction}
+                    <span className={`text-sm font-medium ${dirColor}`}>
+                      {dirLabel}
                     </span>
                   </td>
                   <td className="py-3 px-2 text-right">
