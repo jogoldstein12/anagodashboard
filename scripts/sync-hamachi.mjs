@@ -141,9 +141,10 @@ async function syncHamachiStatus() {
   const running = isScannerActive();
   const trades = parseCsv(PAPER_TRADES_CSV);
 
+  // Only count live trades (settled="True" = was a real Kalshi order)
+  const liveTrades = trades.filter((t) => t.settled === "True");
   // CSV column: settlement_outcome = "YES" | "NO" | "" (empty = open/pending)
-  // CSV column: settled = "True" | "False"
-  const completedTrades = trades.filter((t) => t.settlement_outcome && t.settlement_outcome !== "");
+  const completedTrades = liveTrades.filter((t) => t.settlement_outcome && t.settlement_outcome !== "");
 
   function isWin(t) {
     const dir = t.direction; // "BUY_YES" or "BUY_NO"
@@ -155,11 +156,21 @@ async function syncHamachiStatus() {
   const totalTrades = completedTrades.length;
   const winRate = totalTrades > 0 ? (wins / totalTrades) * 100 : 0;
 
-  // Total P&L from completed trades
-  const totalPnl = completedTrades.reduce(
-    (sum, t) => sum + parseFloat(t.pnl_net_maker || "0"),
-    0
-  );
+  // Dollar P&L: use pnl_dollar_taker (contracts × per-contract net) when available
+  // Skip rows with no contracts (Mar 24 test trades before position sizing was tracked)
+  function tradeDollarPnl(t) {
+    const n = parseInt(t.contracts || "0");
+    if (n === 0) return 0; // no contract count = can't compute dollar P&L
+    if (t.pnl_dollar_taker !== "" && t.pnl_dollar_taker != null) {
+      return parseFloat(t.pnl_dollar_taker);
+    }
+    if (t.pnl_dollar_maker !== "" && t.pnl_dollar_maker != null) {
+      return parseFloat(t.pnl_dollar_maker);
+    }
+    return 0;
+  }
+
+  const totalPnl = completedTrades.reduce((sum, t) => sum + tradeDollarPnl(t), 0);
 
   // Last trade timestamp
   const lastTrade = trades.length > 0 ? trades[trades.length - 1] : null;
@@ -170,10 +181,7 @@ async function syncHamachiStatus() {
   // Today's P&L — use contract date, not timestamp
   const today = new Date().toISOString().split("T")[0];
   const todayTrades = completedTrades.filter((t) => t.date === today);
-  const dailyPnl = todayTrades.reduce(
-    (sum, t) => sum + parseFloat(t.pnl_net_maker || "0"),
-    0
-  );
+  const dailyPnl = todayTrades.reduce((sum, t) => sum + tradeDollarPnl(t), 0);
 
   const status = running
     ? riskState.daily_loss_halted
@@ -211,9 +219,10 @@ async function syncHamachiTrades() {
     return;
   }
 
-  // Sync last 100 trades
-  const recent = trades.slice(-100);
-  console.log(`  Found ${trades.length} trades, syncing last ${recent.length}`);
+  // Only sync live trades (real Kalshi orders)
+  const liveTrades = trades.filter((t) => t.settled === "True");
+  const recent = liveTrades.slice(-100);
+  console.log(`  Found ${trades.length} total trades (${liveTrades.length} live), syncing ${recent.length}`);
 
   for (let i = 0; i < recent.length; i++) {
     const t = recent[i];
@@ -238,7 +247,14 @@ async function syncHamachiTrades() {
       exitPrice: undefined, // Hamachi doesn't have explicit exit price
       modelProb: parseFloat(t.model_prob) || 0,
       outcome,
-      pnlNet: t.pnl_net_maker !== "" && t.pnl_net_maker != null ? parseFloat(t.pnl_net_maker) : undefined,
+      // pnlNet = total dollar P&L; skip rows with no contract count (pre-tracking test trades)
+      pnlNet: (() => {
+        const n = parseInt(t.contracts || "0");
+        if (n === 0) return undefined;
+        if (t.pnl_dollar_taker !== "" && t.pnl_dollar_taker != null) return parseFloat(t.pnl_dollar_taker);
+        if (t.pnl_dollar_maker !== "" && t.pnl_dollar_maker != null) return parseFloat(t.pnl_dollar_maker);
+        return undefined;
+      })(),
       live: t.settled === "True",
       contractDate: t.date || "",
     });
@@ -249,7 +265,16 @@ async function syncHamachiPnl() {
   console.log("📅 Syncing Hamachi daily P&L...");
 
   const trades = parseCsv(PAPER_TRADES_CSV);
-  const completedTrades = trades.filter((t) => t.settlement_outcome && t.settlement_outcome !== "");
+  const liveTrades2 = trades.filter((t) => t.settled === "True");
+  const completedTrades = liveTrades2.filter((t) => t.settlement_outcome && t.settlement_outcome !== "");
+
+  function tradeDollarPnl2(t) {
+    const n = parseInt(t.contracts || "0");
+    if (n === 0) return 0;
+    if (t.pnl_dollar_taker !== "" && t.pnl_dollar_taker != null) return parseFloat(t.pnl_dollar_taker);
+    if (t.pnl_dollar_maker !== "" && t.pnl_dollar_maker != null) return parseFloat(t.pnl_dollar_maker);
+    return 0;
+  }
 
   function isWinPnl(t) {
     const dir = t.direction;
@@ -265,7 +290,7 @@ async function syncHamachiPnl() {
     if (!byDate[date]) byDate[date] = { trades: 0, wins: 0, pnl: 0 };
     byDate[date].trades++;
     if (isWinPnl(t)) byDate[date].wins++;
-    byDate[date].pnl += parseFloat(t.pnl_net_maker || "0");
+    byDate[date].pnl += tradeDollarPnl2(t);
   }
 
   const riskState = readJson(RISK_STATE_PATH);
