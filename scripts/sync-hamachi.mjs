@@ -129,6 +129,22 @@ function isScannerActive() {
 
 // ─── Sync Functions ─────────────────────────────────────────
 
+async function fetchKalshiBalance() {
+  try {
+    const { execSync } = await import("child_process");
+    const scriptPath = resolve(__dirname, "kalshi_balance.py");
+    const result = execSync(`python3 ${scriptPath}`, { encoding: "utf-8", timeout: 10000 });
+    const data = JSON.parse(result.trim());
+    return {
+      cash: (data.balance || 0) / 100,
+      portfolioValue: (data.portfolio_value || 0) / 100,
+    };
+  } catch (e) {
+    console.log("  ⚠️  Could not fetch Kalshi balance:", e.message?.slice(0, 80));
+    return null;
+  }
+}
+
 async function syncHamachiStatus() {
   console.log("🌤️  Syncing Hamachi status...");
 
@@ -137,6 +153,11 @@ async function syncHamachiStatus() {
     console.log("  ⚠️  Risk state not found at", RISK_STATE_PATH);
     return;
   }
+
+  // Fetch live Kalshi balance (cash only, excludes open positions)
+  const kalshiBalance = await fetchKalshiBalance();
+  const liveCash = kalshiBalance?.cash ?? riskState.bankroll ?? 0;
+  const openPositionsValue = kalshiBalance?.portfolioValue ?? 0;
 
   const running = isScannerActive();
   const trades = parseCsv(PAPER_TRADES_CSV);
@@ -191,9 +212,10 @@ async function syncHamachiStatus() {
 
   const payload = {
     status,
-    bankroll: riskState.bankroll ?? 0,
-    deployed: riskState.deployed ?? 0,
-    peakBankroll: riskState.peak_bankroll ?? riskState.bankroll ?? 0,
+    // Use live Kalshi cash balance — single source of truth
+    bankroll: liveCash,
+    deployed: openPositionsValue,
+    peakBankroll: Math.max(riskState.peak_bankroll ?? 0, liveCash + openPositionsValue),
     dailyPnl: Math.round(dailyPnl * 100) / 100 || riskState.daily_realized_pnl || 0,
     totalPnl: Math.round(totalPnl * 100) / 100,
     openPositions: riskState.open_positions ?? 0,
@@ -204,7 +226,7 @@ async function syncHamachiStatus() {
     lastTradeAt,
   };
 
-  console.log(`  Status: ${status} | Bankroll: $${payload.bankroll.toFixed(2)} | Deployed: $${payload.deployed.toFixed(2)}`);
+  console.log(`  Status: ${status} | Kalshi Cash: $${liveCash.toFixed(2)} | Open Positions: $${openPositionsValue.toFixed(2)}`);
   console.log(`  Trades: ${totalTrades} (${riskState.open_positions ?? 0} open) | P&L: $${payload.totalPnl.toFixed(2)} | Win Rate: ${payload.winRate.toFixed(1)}%`);
 
   await post("/api/sync/hamachi-status", payload);
