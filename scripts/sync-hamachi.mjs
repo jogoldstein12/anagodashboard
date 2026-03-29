@@ -237,7 +237,7 @@ async function syncHamachiTrades() {
     }
 
     await post("/api/sync/hamachi-trade", {
-      tradeId: `${t.ticker}-${t.direction}`,
+      tradeId: `${t.ticker}-${t.direction}-${t.timestamp ? t.timestamp.replace(/[^0-9]/g,'').slice(0,12) : i}`,
       ts,
       city: t.city || "",
       ticker: t.ticker || "",
