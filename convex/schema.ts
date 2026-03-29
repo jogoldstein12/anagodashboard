@@ -320,4 +320,46 @@ export default defineSchema({
   })
     .index("by_releaseDate", ["releaseDate"])
     .index("by_tradeId", ["tradeId"]),
+
+  // HAMACHI WEATHER TRADING TABLES
+  hamachi_status: defineTable({
+    status: v.string(),
+    bankroll: v.number(),
+    deployed: v.number(),
+    peakBankroll: v.number(),
+    dailyPnl: v.number(),
+    totalPnl: v.number(),
+    openPositions: v.number(),
+    totalTrades: v.number(),
+    wins: v.number(),
+    winRate: v.number(),
+    dailyLossHalted: v.boolean(),
+    lastSyncAt: v.number(),
+    lastTradeAt: v.optional(v.number()),
+  }).index("by_lastSync", ["lastSyncAt"]),
+
+  hamachi_trades: defineTable({
+    tradeId: v.string(),
+    ts: v.number(),
+    city: v.string(),
+    ticker: v.string(),
+    strike: v.number(),
+    direction: v.string(),
+    entryPrice: v.number(),
+    exitPrice: v.optional(v.number()),
+    modelProb: v.number(),
+    outcome: v.optional(v.string()),
+    pnlNet: v.optional(v.number()),
+    live: v.boolean(),
+    contractDate: v.string(),
+  }).index("by_ts", ["ts"]).index("by_tradeId", ["tradeId"]).index("by_city", ["city", "ts"]),
+
+  hamachi_pnl: defineTable({
+    date: v.string(),
+    trades: v.number(),
+    wins: v.number(),
+    pnl: v.number(),
+    bankrollClose: v.number(),
+    timestamp: v.number(),
+  }).index("by_date", ["date"]),
 });

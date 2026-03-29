@@ -443,6 +443,89 @@ http.route({
   }),
 });
 
+// HAMACHI SYNC ROUTES
+
+// POST /api/sync/hamachi-status
+http.route({
+  path: "/api/sync/hamachi-status",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    if (!checkAuth(request)) {
+      return jsonResponse({ error: "Unauthorized" }, 401);
+    }
+
+    const body = await request.json();
+    await ctx.runMutation(internal.hamachi.syncHamachiStatus, {
+      status: body.status,
+      bankroll: body.bankroll,
+      deployed: body.deployed,
+      peakBankroll: body.peakBankroll,
+      dailyPnl: body.dailyPnl,
+      totalPnl: body.totalPnl,
+      openPositions: body.openPositions,
+      totalTrades: body.totalTrades,
+      wins: body.wins,
+      winRate: body.winRate,
+      dailyLossHalted: body.dailyLossHalted,
+      lastTradeAt: body.lastTradeAt,
+    });
+
+    return jsonResponse({ ok: true });
+  }),
+});
+
+// POST /api/sync/hamachi-trade
+http.route({
+  path: "/api/sync/hamachi-trade",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    if (!checkAuth(request)) {
+      return jsonResponse({ error: "Unauthorized" }, 401);
+    }
+
+    const body = await request.json();
+    await ctx.runMutation(internal.hamachi.syncHamachiTrade, {
+      tradeId: body.tradeId,
+      ts: body.ts,
+      city: body.city,
+      ticker: body.ticker,
+      strike: body.strike,
+      direction: body.direction,
+      entryPrice: body.entryPrice,
+      exitPrice: body.exitPrice,
+      modelProb: body.modelProb,
+      outcome: body.outcome,
+      pnlNet: body.pnlNet,
+      live: body.live,
+      contractDate: body.contractDate,
+    });
+
+    return jsonResponse({ ok: true });
+  }),
+});
+
+// POST /api/sync/hamachi-pnl
+http.route({
+  path: "/api/sync/hamachi-pnl",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    if (!checkAuth(request)) {
+      return jsonResponse({ error: "Unauthorized" }, 401);
+    }
+
+    const body = await request.json();
+    await ctx.runMutation(internal.hamachi.syncHamachiPnl, {
+      date: body.date,
+      trades: body.trades,
+      wins: body.wins,
+      pnl: body.pnl,
+      bankrollClose: body.bankrollClose,
+    });
+
+    return jsonResponse({ ok: true });
+  }),
+});
+
 // POST /api/admin/clear-mako-history — wipes stale mako_trades + mako_pnl from Convex
 http.route({
   path: "/api/admin/clear-mako-history",

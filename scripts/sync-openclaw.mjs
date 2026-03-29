@@ -1170,6 +1170,127 @@ print(json.dumps({"balance": bal}))
   }
 }
 
+// ─── Sync Hamachi Weather Trading ────────────────────────────
+async function syncHamachi(state) {
+  console.log("\n🌤️  Syncing Hamachi weather trading...");
+
+  const RISK_STATE_PATH = resolve(process.env.HOME, ".openclaw/workspace/state/hamachi_risk_state.json");
+  const WEATHER_ROOT = resolve(process.env.HOME, ".openclaw/workspace/agents/weather");
+  const SCANNER_LOG = resolve(WEATHER_ROOT, "logs/scanner.log");
+  const PAPER_TRADES_CSV = resolve(WEATHER_ROOT, "logs/paper_trades.csv");
+
+  // Read risk state
+  let riskState = null;
+  try {
+    if (existsSync(RISK_STATE_PATH)) {
+      riskState = JSON.parse(readFileSync(RISK_STATE_PATH, "utf-8"));
+    }
+  } catch (err) {
+    console.log(`  ⚠️  Error reading hamachi_risk_state.json: ${err.message}`);
+  }
+
+  if (!riskState) {
+    console.log("  ⚠️  Hamachi risk state not found, skipping");
+    return;
+  }
+
+  // Detect scanner liveness
+  let scannerActive = false;
+  try {
+    execSync('pgrep -f "scanner.runner"', { stdio: "pipe" });
+    scannerActive = true;
+  } catch {
+    // Fall back to log recency
+    try {
+      if (existsSync(SCANNER_LOG)) {
+        const logStat = statSync(SCANNER_LOG);
+        scannerActive = (Date.now() - logStat.mtimeMs) < 120000;
+      }
+    } catch {}
+  }
+
+  // Parse paper trades
+  let trades = [];
+  try {
+    if (existsSync(PAPER_TRADES_CSV)) {
+      const content = readFileSync(PAPER_TRADES_CSV, "utf-8").trim();
+      const lines = content.split("\n");
+      if (lines.length > 1) {
+        const headers = lines[0].split(",").map(h => h.trim());
+        trades = lines.slice(1).map(line => {
+          const vals = line.split(",").map(v => v.trim());
+          const row = {};
+          headers.forEach((h, i) => { row[h] = vals[i] || ""; });
+          return row;
+        });
+      }
+    }
+  } catch (err) {
+    console.log(`  ⚠️  Error reading paper_trades.csv: ${err.message}`);
+  }
+
+  // Calculate stats
+  const completedTrades = trades.filter(t => t.outcome && t.outcome !== "");
+  const wins = completedTrades.filter(t => t.outcome === "win" || parseFloat(t.pnl_net_maker || "0") > 0).length;
+  const totalTrades = completedTrades.length;
+  const winRate = totalTrades > 0 ? (wins / totalTrades) * 100 : 0;
+  const totalPnl = completedTrades.reduce((sum, t) => sum + parseFloat(t.pnl_net_maker || "0"), 0);
+
+  const today = new Date().toISOString().split("T")[0];
+  const dailyPnl = completedTrades
+    .filter(t => t.timestamp && t.timestamp.startsWith(today))
+    .reduce((sum, t) => sum + parseFloat(t.pnl_net_maker || "0"), 0);
+
+  const lastTrade = trades.length > 0 ? trades[trades.length - 1] : null;
+  const lastTradeAt = lastTrade?.timestamp ? new Date(lastTrade.timestamp).getTime() : undefined;
+
+  const status = scannerActive
+    ? riskState.daily_loss_halted ? "halted" : "live"
+    : "stopped";
+
+  console.log(`  Status: ${status} | Bankroll: $${(riskState.bankroll || 0).toFixed(2)} | Trades: ${totalTrades}`);
+
+  await post("/api/sync/hamachi-status", {
+    status,
+    bankroll: riskState.bankroll ?? 0,
+    deployed: riskState.deployed ?? 0,
+    peakBankroll: riskState.peak_bankroll ?? riskState.bankroll ?? 0,
+    dailyPnl: Math.round((dailyPnl || riskState.daily_realized_pnl || 0) * 100) / 100,
+    totalPnl: Math.round(totalPnl * 100) / 100,
+    openPositions: riskState.open_positions ?? 0,
+    totalTrades,
+    wins,
+    winRate: Math.round(winRate * 10) / 10,
+    dailyLossHalted: riskState.daily_loss_halted ?? false,
+    lastTradeAt,
+  });
+
+  // Sync recent trades
+  const recentTrades = trades.slice(-50);
+  let syncedTrades = 0;
+  for (let i = 0; i < recentTrades.length; i++) {
+    const t = recentTrades[i];
+    const ts = t.timestamp ? new Date(t.timestamp).getTime() : Date.now();
+    await post("/api/sync/hamachi-trade", {
+      tradeId: `${t.city}-${t.date}-${t.ticker}-${t.strike}-${i}`,
+      ts,
+      city: t.city || "",
+      ticker: t.ticker || "",
+      strike: parseFloat(t.strike) || 0,
+      direction: t.direction || "",
+      entryPrice: parseFloat(t.entry_price) || 0,
+      exitPrice: t.exit_price ? parseFloat(t.exit_price) : undefined,
+      modelProb: parseFloat(t.model_prob) || 0,
+      outcome: t.outcome || undefined,
+      pnlNet: t.pnl_net_maker ? parseFloat(t.pnl_net_maker) : undefined,
+      live: t.live === "True" || t.live === "true" || t.live === "1",
+      contractDate: t.date || "",
+    });
+    syncedTrades++;
+  }
+  console.log(`  ✅ ${syncedTrades} Hamachi trades synced`);
+}
+
 // ─── Sync Memory Files ──────────────────────────────────────
 async function syncMemoryFiles(state) {
   console.log("\n🧠 Syncing memory files...");
@@ -1309,6 +1430,7 @@ async function main() {
   await syncRecentActivity(state);
   await syncMako(state);
   await syncUni(state);
+  await syncHamachi(state);
   await syncMemoryFiles(state);
   
   state.lastSync = Date.now();
