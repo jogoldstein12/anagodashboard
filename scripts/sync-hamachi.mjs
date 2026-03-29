@@ -224,6 +224,12 @@ async function syncHamachiTrades() {
   const recent = liveTrades.slice(-100);
   console.log(`  Found ${trades.length} total trades (${liveTrades.length} live), syncing ${recent.length}`);
 
+  // Clear all existing trade records first to prevent duplicates from old tradeId formats
+  const clearResult = await post("/api/sync/hamachi-clear-trades", {});
+  if (clearResult?.deleted > 0) {
+    console.log(`  Cleared ${clearResult.deleted} stale trade records`);
+  }
+
   for (let i = 0; i < recent.length; i++) {
     const t = recent[i];
     const ts = t.timestamp ? new Date(t.timestamp).getTime() : Date.now();

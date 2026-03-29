@@ -85,6 +85,14 @@ export const syncHamachiPnl = internalMutation({
   },
 });
 
+export const clearHamachiTrades = internalMutation({
+  handler: async (ctx) => {
+    const all = await ctx.db.query("hamachi_trades").collect();
+    for (const t of all) await ctx.db.delete(t._id);
+    return { deleted: all.length };
+  },
+});
+
 // ─── Query Functions ────────────────────────────────────────────
 
 export const getHamachiStatus = query({

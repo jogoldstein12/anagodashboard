@@ -445,6 +445,19 @@ http.route({
 
 // HAMACHI SYNC ROUTES
 
+// POST /api/sync/hamachi-clear-trades
+http.route({
+  path: "/api/sync/hamachi-clear-trades",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    if (!checkAuth(request)) {
+      return jsonResponse({ error: "Unauthorized" }, 401);
+    }
+    const result = await ctx.runMutation(internal.hamachi.clearHamachiTrades, {});
+    return jsonResponse({ ok: true, ...result });
+  }),
+});
+
 // POST /api/sync/hamachi-status
 http.route({
   path: "/api/sync/hamachi-status",

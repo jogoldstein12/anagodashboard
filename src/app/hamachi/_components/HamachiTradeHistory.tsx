@@ -114,7 +114,7 @@ export function HamachiTradeHistory({ trades }: HamachiTradeHistoryProps) {
                     <span className="text-sm text-white/70">{trade.strike}</span>
                   </td>
                   <td className="py-3 px-2 text-right">
-                    <span className="text-sm text-white/70">{(trade.entryPrice * 100).toFixed(0)}\u00a2</span>
+                    <span className="text-sm text-white/70">{(trade.entryPrice * 100).toFixed(0)}¢</span>
                   </td>
                   <td className="py-3 px-2 text-right">
                     <span className="text-sm text-white/60">{(trade.modelProb * 100).toFixed(1)}%</span>
