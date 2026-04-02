@@ -42,8 +42,8 @@ export function HamachiStatsRow({ status }: HamachiStatsRowProps) {
     },
     {
       icon: <Layers className="w-4 h-4" />,
-      label: "Open Positions",
-      value: String(s?.openPositions ?? 0),
+      label: "Deployed",
+      value: `$${(s?.deployed ?? 0).toFixed(2)}`,
       color: "text-white",
     },
     {

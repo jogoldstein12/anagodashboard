@@ -26,6 +26,7 @@ const WEATHER_ROOT = resolve(process.env.HOME, ".openclaw/workspace/agents/weath
 const RISK_STATE_PATH = resolve(process.env.HOME, ".openclaw/workspace/state/hamachi_risk_state.json");
 const SCANNER_LOG = resolve(WEATHER_ROOT, "logs/scanner.log");
 const PAPER_TRADES_CSV = resolve(WEATHER_ROOT, "logs/paper_trades.csv");
+const EXITS_CSV = resolve(WEATHER_ROOT, "logs/exits.csv");
 const SIGNALS_CSV = resolve(WEATHER_ROOT, "logs/signals.csv");
 
 // ─── Env ────────────────────────────────────────────────────
@@ -127,6 +128,94 @@ function isScannerActive() {
   }
 }
 
+// ─── Load combined trade data from both CSV sources ───────
+// exits.csv = Phase 2 live exits (deduplicated by ticker+direction)
+// paper_trades.csv = Phase 1 settled trades (settled=True rows)
+function loadAllCompletedTrades() {
+  const completed = [];
+
+  // Phase 1: paper_trades.csv (settled=True, has settlement_outcome)
+  const paperTrades = parseCsv(PAPER_TRADES_CSV);
+  for (const t of paperTrades) {
+    if (t.settled === "True" && t.settlement_outcome && t.settlement_outcome !== "") {
+      // Determine win: BUY_YES wins if outcome=YES, BUY_NO wins if outcome=NO
+      const isWin = (t.direction === "BUY_YES" && t.settlement_outcome === "YES") ||
+                    (t.direction === "BUY_NO" && t.settlement_outcome === "NO");
+      const n = parseInt(t.contracts || "0");
+      let pnlDollar;
+      if (t.pnl_dollar_taker !== "" && t.pnl_dollar_taker != null) {
+        const d = parseFloat(t.pnl_dollar_taker);
+        pnlDollar = Math.abs(d) > 0.001 ? d : parseFloat(t.pnl_net_taker || "0");
+      } else if (n > 1 && t.pnl_net_taker !== "") {
+        pnlDollar = parseFloat(t.pnl_net_taker) * n;
+      } else {
+        pnlDollar = parseFloat(t.pnl_net_taker || "0");
+      }
+      completed.push({
+        source: "paper",
+        timestamp: t.timestamp,
+        date: t.date,
+        ticker: t.ticker,
+        city: t.city || "",
+        direction: t.direction,
+        entryPrice: parseFloat(t.entry_price_maker) || 0,
+        exitPrice: undefined,
+        contracts: n || 1,
+        modelProb: parseFloat(t.model_prob) || 0,
+        strike: parseFloat(t.strike) || 0,
+        outcome: isWin ? "win" : "loss",
+        pnlDollar,
+      });
+    }
+  }
+
+  // Phase 2: exits.csv — deduplicate by ticker+direction (same position exited multiple times)
+  const exitRows = parseCsv(EXITS_CSV);
+  const seenExits = new Set();
+  for (const t of exitRows) {
+    const key = `${t.ticker}_${t.direction}`;
+    if (seenExits.has(key)) continue;
+    seenExits.add(key);
+    const n = parseInt(t.contracts || "1");
+    const pnlDollar = parseFloat(t.pnl_net || "0");
+    // exits.csv has no outcome — determine from pnl_net sign
+    // positive = win, negative = loss
+    const outcome = pnlDollar >= 0 ? "win" : "loss";
+    // Extract city from ticker: KXHIGHCHI → CHI, KXHIGHDEN → DEN, etc.
+    const cityMatch = t.ticker.match(/KXHIGH([A-Z]+)-/);
+    const city = cityMatch ? cityMatch[1] : "";
+    // Extract date from ticker: KXHIGHCHI-26APR03-T60 → 2026-04-03
+    const dateMatch = t.ticker.match(/-26(\w{3})(\d{2})-/);
+    let contractDate = t.timestamp ? t.timestamp.slice(0, 10) : "";
+    if (dateMatch) {
+      const months = {JAN:"01",FEB:"02",MAR:"03",APR:"04",MAY:"05",JUN:"06",JUL:"07",AUG:"08",SEP:"09",OCT:"10",NOV:"11",DEC:"12"};
+      contractDate = `2026-${months[dateMatch[1]] || "00"}-${dateMatch[2]}`;
+    }
+    // Extract strike from ticker: KXHIGHCHI-26APR03-T60 → 60
+    const strikeMatch = t.ticker.match(/-T(\d+)$/);
+    const strike = strikeMatch ? parseInt(strikeMatch[1]) : 0;
+    completed.push({
+      source: "exits",
+      timestamp: t.timestamp,
+      date: contractDate,
+      ticker: t.ticker,
+      city,
+      direction: t.direction,
+      entryPrice: parseFloat(t.entry_price) || 0,
+      exitPrice: parseFloat(t.exit_price) || 0,
+      contracts: n,
+      modelProb: 0,
+      strike,
+      outcome,
+      pnlDollar,
+    });
+  }
+
+  // Sort by timestamp ascending
+  completed.sort((a, b) => (a.timestamp || "").localeCompare(b.timestamp || ""));
+  return completed;
+}
+
 // ─── Sync Functions ─────────────────────────────────────────
 
 async function fetchKalshiBalance() {
@@ -160,49 +249,19 @@ async function syncHamachiStatus() {
   const openPositionsValue = kalshiBalance?.portfolioValue ?? 0;
 
   const running = isScannerActive();
-  const trades = parseCsv(PAPER_TRADES_CSV);
+  const completedTrades = loadAllCompletedTrades();
 
-  // Only count live trades (settled="True" = was a real Kalshi order)
-  const liveTrades = trades.filter((t) => t.settled === "True");
-  // CSV column: settlement_outcome = "YES" | "NO" | "" (empty = open/pending)
-  const completedTrades = liveTrades.filter((t) => t.settlement_outcome && t.settlement_outcome !== "");
-
-  function isWin(t) {
-    const dir = t.direction; // "BUY_YES" or "BUY_NO"
-    const outcome = t.settlement_outcome; // "YES" or "NO"
-    return (dir === "BUY_YES" && outcome === "YES") || (dir === "BUY_NO" && outcome === "NO");
-  }
-
-  const wins = completedTrades.filter(isWin).length;
+  const wins = completedTrades.filter((t) => t.outcome === "win").length;
   const totalTrades = completedTrades.length;
   const winRate = totalTrades > 0 ? (wins / totalTrades) * 100 : 0;
+  const totalPnl = completedTrades.reduce((sum, t) => sum + t.pnlDollar, 0);
 
-  // Dollar P&L: use pnl_dollar_taker (contracts × per-contract net) when available
-  // Skip rows with no contracts (Mar 24 test trades before position sizing was tracked)
-  function tradeDollarPnl(t) {
-    const n = parseInt(t.contracts || "0");
-    if (n === 0) return 0; // no contract count = can't compute dollar P&L
-    if (t.pnl_dollar_taker !== "" && t.pnl_dollar_taker != null) {
-      return parseFloat(t.pnl_dollar_taker);
-    }
-    if (t.pnl_dollar_maker !== "" && t.pnl_dollar_maker != null) {
-      return parseFloat(t.pnl_dollar_maker);
-    }
-    return 0;
-  }
+  const lastTrade = completedTrades.length > 0 ? completedTrades[completedTrades.length - 1] : null;
+  const lastTradeAt = lastTrade?.timestamp ? new Date(lastTrade.timestamp).getTime() : undefined;
 
-  const totalPnl = completedTrades.reduce((sum, t) => sum + tradeDollarPnl(t), 0);
-
-  // Last trade timestamp
-  const lastTrade = trades.length > 0 ? trades[trades.length - 1] : null;
-  const lastTradeAt = lastTrade?.timestamp
-    ? new Date(lastTrade.timestamp).getTime()
-    : undefined;
-
-  // Today's P&L — use contract date, not timestamp
   const today = new Date().toISOString().split("T")[0];
   const todayTrades = completedTrades.filter((t) => t.date === today);
-  const dailyPnl = todayTrades.reduce((sum, t) => sum + tradeDollarPnl(t), 0);
+  const dailyPnl = todayTrades.reduce((sum, t) => sum + t.pnlDollar, 0);
 
   const status = running
     ? riskState.daily_loss_halted
@@ -218,7 +277,7 @@ async function syncHamachiStatus() {
     peakBankroll: Math.max(riskState.peak_bankroll ?? 0, liveCash + openPositionsValue),
     dailyPnl: Math.round(dailyPnl * 100) / 100 || riskState.daily_realized_pnl || 0,
     totalPnl: Math.round(totalPnl * 100) / 100,
-    openPositions: riskState.open_positions ?? 0,
+    openPositions: typeof riskState.open_positions === "object" ? Object.keys(riskState.open_positions).length : (riskState.open_positions ?? 0),
     totalTrades,
     wins,
     winRate: Math.round(winRate * 10) / 10,
@@ -227,7 +286,7 @@ async function syncHamachiStatus() {
   };
 
   console.log(`  Status: ${status} | Kalshi Cash: $${liveCash.toFixed(2)} | Open Positions: $${openPositionsValue.toFixed(2)}`);
-  console.log(`  Trades: ${totalTrades} (${riskState.open_positions ?? 0} open) | P&L: $${payload.totalPnl.toFixed(2)} | Win Rate: ${payload.winRate.toFixed(1)}%`);
+  console.log(`  Trades: ${totalTrades} (${payload.openPositions} open) | P&L: $${payload.totalPnl.toFixed(2)} | Win Rate: ${payload.winRate.toFixed(1)}%`);
 
   await post("/api/sync/hamachi-status", payload);
 }
@@ -235,18 +294,16 @@ async function syncHamachiStatus() {
 async function syncHamachiTrades() {
   console.log("📈 Syncing Hamachi trades...");
 
-  const trades = parseCsv(PAPER_TRADES_CSV);
-  if (trades.length === 0) {
+  const allTrades = loadAllCompletedTrades();
+  if (allTrades.length === 0) {
     console.log("  No trades found");
     return;
   }
 
-  // Only sync live trades (real Kalshi orders)
-  const liveTrades = trades.filter((t) => t.settled === "True");
-  const recent = liveTrades.slice(-100);
-  console.log(`  Found ${trades.length} total trades (${liveTrades.length} live), syncing ${recent.length}`);
+  const recent = allTrades.slice(-100);
+  console.log(`  Found ${allTrades.length} completed trades, syncing ${recent.length}`);
 
-  // Clear all existing trade records first to prevent duplicates from old tradeId formats
+  // Clear stale records first
   const clearResult = await post("/api/sync/hamachi-clear-trades", {});
   if (clearResult?.deleted > 0) {
     console.log(`  Cleared ${clearResult.deleted} stale trade records`);
@@ -255,36 +312,22 @@ async function syncHamachiTrades() {
   for (let i = 0; i < recent.length; i++) {
     const t = recent[i];
     const ts = t.timestamp ? new Date(t.timestamp).getTime() : Date.now();
-
-    // Determine outcome string: "win" | "loss" | undefined (open)
-    let outcome;
-    if (t.settlement_outcome) {
-      const dir = t.direction;
-      const so = t.settlement_outcome;
-      outcome = (dir === "BUY_YES" && so === "YES") || (dir === "BUY_NO" && so === "NO") ? "win" : "loss";
-    }
+    const tradeId = `${t.ticker}-${t.direction}-${t.source}-${t.timestamp ? t.timestamp.replace(/[^0-9]/g,'').slice(0,12) : i}`;
 
     await post("/api/sync/hamachi-trade", {
-      tradeId: `${t.ticker}-${t.direction}-${t.timestamp ? t.timestamp.replace(/[^0-9]/g,'').slice(0,12) : i}`,
+      tradeId,
       ts,
-      city: t.city || "",
-      ticker: t.ticker || "",
-      strike: parseFloat(t.strike) || 0,
-      direction: t.direction || "",
-      entryPrice: parseFloat(t.entry_price_maker) || 0,
-      exitPrice: undefined, // Hamachi doesn't have explicit exit price
-      modelProb: parseFloat(t.model_prob) || 0,
-      outcome,
-      // pnlNet = total dollar P&L; skip rows with no contract count (pre-tracking test trades)
-      pnlNet: (() => {
-        const n = parseInt(t.contracts || "0");
-        if (n === 0) return undefined;
-        if (t.pnl_dollar_taker !== "" && t.pnl_dollar_taker != null) return parseFloat(t.pnl_dollar_taker);
-        if (t.pnl_dollar_maker !== "" && t.pnl_dollar_maker != null) return parseFloat(t.pnl_dollar_maker);
-        return undefined;
-      })(),
-      live: t.settled === "True",
-      contractDate: t.date || "",
+      city: t.city,
+      ticker: t.ticker,
+      strike: t.strike,
+      direction: t.direction,
+      entryPrice: t.entryPrice,
+      exitPrice: t.exitPrice,
+      modelProb: t.modelProb,
+      outcome: t.outcome,
+      pnlNet: t.pnlDollar,
+      live: true,
+      contractDate: t.date,
     });
   }
 }
@@ -292,23 +335,7 @@ async function syncHamachiTrades() {
 async function syncHamachiPnl() {
   console.log("📅 Syncing Hamachi daily P&L...");
 
-  const trades = parseCsv(PAPER_TRADES_CSV);
-  const liveTrades2 = trades.filter((t) => t.settled === "True");
-  const completedTrades = liveTrades2.filter((t) => t.settlement_outcome && t.settlement_outcome !== "");
-
-  function tradeDollarPnl2(t) {
-    const n = parseInt(t.contracts || "0");
-    if (n === 0) return 0;
-    if (t.pnl_dollar_taker !== "" && t.pnl_dollar_taker != null) return parseFloat(t.pnl_dollar_taker);
-    if (t.pnl_dollar_maker !== "" && t.pnl_dollar_maker != null) return parseFloat(t.pnl_dollar_maker);
-    return 0;
-  }
-
-  function isWinPnl(t) {
-    const dir = t.direction;
-    const so = t.settlement_outcome;
-    return (dir === "BUY_YES" && so === "YES") || (dir === "BUY_NO" && so === "NO");
-  }
+  const completedTrades = loadAllCompletedTrades();
 
   // Group by contract date
   const byDate = {};
@@ -317,8 +344,8 @@ async function syncHamachiPnl() {
     if (!date) continue;
     if (!byDate[date]) byDate[date] = { trades: 0, wins: 0, pnl: 0 };
     byDate[date].trades++;
-    if (isWinPnl(t)) byDate[date].wins++;
-    byDate[date].pnl += tradeDollarPnl2(t);
+    if (t.outcome === "win") byDate[date].wins++;
+    byDate[date].pnl += t.pnlDollar;
   }
 
   const riskState = readJson(RISK_STATE_PATH);
